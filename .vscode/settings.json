@@ -35,7 +35,12 @@
 		"dtos",
 		"mockall",
 		"pathfinding",
+		"rrggbbaa",
 		"serde",
+		"Srgba",
 		"zyheeda"
+	],
+	"color-picker-universal.languages": [
+		"json"
 	],
 }
