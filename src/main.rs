@@ -1,4 +1,4 @@
-use bevy::{color::palettes::css::GRAY, prelude::*};
+use bevy::prelude::*;
 use project_zyheeda_pathfinding::{
 	asset_loader::CustomAssetLoader,
 	components::{
@@ -8,6 +8,7 @@ use project_zyheeda_pathfinding::{
 	dtos::{tile_color::TileColor, tile_size::TileSize},
 	systems::insert_asset::InsertAssetSystem,
 };
+use std::path::Path;
 
 fn main() -> AppExit {
 	let mut app = App::new();
@@ -29,8 +30,8 @@ fn main() -> AppExit {
 		.add_systems(
 			Update,
 			(
-				Added::<Tile>::insert_asset(ColorMaterial::from_color(GRAY)),
-				Added::<Tile>::insert_asset(Mesh::from(Rectangle::new(45., 45.))),
+				Added::<Tile>::insert_asset::<ColorMaterial>(Path::new("tile/color.json")),
+				Added::<Tile>::insert_asset::<Mesh>(Path::new("tile/size.json")),
 			),
 		);
 

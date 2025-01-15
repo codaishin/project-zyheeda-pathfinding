@@ -1,58 +1,58 @@
+use crate::traits::{into_component::IntoComponent, load_asset::LoadAsset};
 use bevy::{ecs::query::QueryFilter, prelude::*};
-use uuid::Uuid;
-
-use crate::traits::into_component::IntoComponent;
+use std::path::Path;
 
 impl<T> InsertAssetSystem for T {}
 
 pub trait InsertAssetSystem {
 	#[allow(clippy::type_complexity)]
-	fn insert_asset<T>(asset: T) -> impl Fn(Commands, ResMut<Assets<T>>, Query<Entity, Self>)
+	fn insert_asset<TAsset>(
+		path: &'static Path,
+	) -> impl Fn(Commands, Res<AssetServer>, Query<Entity, Self>)
 	where
-		T: Asset + Clone,
-		Handle<T>: IntoComponent,
+		TAsset: Asset,
+		Handle<TAsset>: IntoComponent,
 		Self: QueryFilter + Sized,
 	{
-		let id = AssetId::Uuid {
-			uuid: Uuid::new_v4(),
-		};
-
-		move |mut commands, mut assets, entities| {
-			for entity in &entities {
-				let Some(mut entity) = commands.get_entity(entity) else {
-					continue;
-				};
-				let handle = get_or_insert_material(&mut assets, id, &asset);
-				entity.try_insert(handle.into_component());
-			}
-		}
+		insert_asset_system::<TAsset, Self, AssetServer>(path)
 	}
 }
 
-fn get_or_insert_material<T>(assets: &mut ResMut<Assets<T>>, id: AssetId<T>, asset: &T) -> Handle<T>
+fn insert_asset_system<TAsset, TFilter, TAssetServer>(
+	path: &'static Path,
+) -> impl Fn(Commands, Res<TAssetServer>, Query<Entity, TFilter>)
 where
-	T: Asset + Clone,
+	TAsset: Asset,
+	Handle<TAsset>: IntoComponent,
+	TFilter: QueryFilter,
+	TAssetServer: Resource + LoadAsset,
 {
-	assets.get_or_insert_with(id, || asset.clone());
-
-	let Some(handle) = assets.get_strong_handle(id) else {
-		unreachable!();
-	};
-
-	handle
+	move |mut commands: Commands,
+	      asset_server: Res<TAssetServer>,
+	      entities: Query<Entity, TFilter>| {
+		for entity in &entities {
+			let Some(mut entity) = commands.get_entity(entity) else {
+				continue;
+			};
+			let handle = asset_server.load_asset(path);
+			entity.try_insert(handle.into_component());
+		}
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::assert_count;
+	use crate::{new_handle, new_mock, test_tools::SingleThreaded};
 	use bevy::ecs::system::{RunSystemError, RunSystemOnce};
+	use mockall::{automock, predicate::eq};
+	use uuid::Uuid;
 
 	#[derive(Component)]
 	struct _Target;
 
 	#[derive(Component, Debug, PartialEq)]
-	struct _Component;
+	struct _Component(Handle<_Asset>);
 
 	#[derive(Asset, TypePath, Clone)]
 	struct _Asset;
@@ -61,13 +61,44 @@ mod tests {
 		type TComponent = _Component;
 
 		fn into_component(self) -> Self::TComponent {
-			_Component
+			_Component(self)
+		}
+	}
+
+	macro_rules! insert_asset_system {
+		($path:expr) => {
+			insert_asset_system::<_Asset, With<_Target>, _AssetServer>($path)
+		};
+	}
+
+	#[derive(Resource)]
+	struct _AssetServer {
+		mock: Mock_AssetServer,
+	}
+
+	impl Default for _AssetServer {
+		fn default() -> Self {
+			let mut mock = Mock_AssetServer::default();
+			mock.expect_load_asset()
+				.return_const(Handle::<_Asset>::default());
+
+			Self { mock }
+		}
+	}
+
+	#[automock]
+	impl LoadAsset for _AssetServer {
+		fn load_asset<TAsset>(&self, path: &Path) -> Handle<TAsset>
+		where
+			TAsset: Asset,
+		{
+			self.mock.load_asset(path)
 		}
 	}
 
 	fn setup() -> App {
-		let mut app = App::new();
-		app.init_resource::<Assets<_Asset>>();
+		let mut app = App::new().single_threaded(Update);
+		app.init_resource::<_AssetServer>();
 
 		app
 	}
@@ -75,56 +106,24 @@ mod tests {
 	#[test]
 	fn insert_asset_into_entity() -> Result<(), RunSystemError> {
 		let mut app = setup();
+		let path = Path::new("my/path");
 		let entity = app.world_mut().spawn(_Target).id();
+		let handle = new_handle!(_Asset);
+		let mock = new_mock!(Mock_AssetServer, |mock: &mut Mock_AssetServer| {
+			mock.expect_load_asset()
+				.times(1)
+				.with(eq(path))
+				.return_const(handle.clone());
+		});
+		app.world_mut().resource_mut::<_AssetServer>().mock = mock;
 
 		app.world_mut()
-			.run_system_once(With::<_Target>::insert_asset(_Asset))?;
+			.run_system_once(insert_asset_system!(path))?;
 
 		assert_eq!(
-			Some(&_Component),
+			Some(&_Component(handle)),
 			app.world().entity(entity).get::<_Component>(),
 		);
-		Ok(())
-	}
-
-	#[test]
-	fn insert_asset_into_assets() -> Result<(), RunSystemError> {
-		let mut app = setup();
-		app.world_mut().spawn(_Target);
-
-		app.world_mut()
-			.run_system_once(With::<_Target>::insert_asset(_Asset))?;
-
-		let assets = app.world().resource::<Assets<_Asset>>();
-		assert_count!(1, assets.iter());
-		Ok(())
-	}
-
-	#[test]
-	fn insert_asset_into_assets_only_once() -> Result<(), RunSystemError> {
-		let mut app = setup();
-		app.world_mut().spawn(_Target);
-		app.world_mut().spawn(_Target);
-
-		app.world_mut()
-			.run_system_once(With::<_Target>::insert_asset(_Asset))?;
-
-		let assets = app.world().resource::<Assets<_Asset>>();
-		assert_count!(1, assets.iter());
-		Ok(())
-	}
-
-	#[test]
-	fn insert_asset_into_assets_only_once_over_multiple_frames() -> Result<(), RunSystemError> {
-		let mut app = setup();
-		app.world_mut().spawn(_Target);
-
-		app.add_systems(Update, With::<_Target>::insert_asset(_Asset));
-		app.update();
-		app.update();
-
-		let assets = app.world().resource::<Assets<_Asset>>();
-		assert_count!(1, assets.iter());
 		Ok(())
 	}
 
@@ -132,17 +131,17 @@ mod tests {
 	fn do_not_run_on_filter_mismatch() -> Result<(), RunSystemError> {
 		let mut app = setup();
 		let entity = app.world_mut().spawn_empty().id();
+		let mock = new_mock!(Mock_AssetServer, |mock: &mut Mock_AssetServer| {
+			mock.expect_load_asset()
+				.never()
+				.return_const(new_handle!(_Asset));
+		});
+		app.world_mut().resource_mut::<_AssetServer>().mock = mock;
 
 		app.world_mut()
-			.run_system_once(With::<_Target>::insert_asset(_Asset))?;
+			.run_system_once(insert_asset_system!(Path::new("")))?;
 
-		assert_eq!(
-			(None, 0),
-			(
-				app.world().entity(entity).get::<_Component>(),
-				app.world().resource::<Assets<_Asset>>().iter().count()
-			)
-		);
+		assert_eq!(None, app.world().entity(entity).get::<_Component>());
 		Ok(())
 	}
 }
