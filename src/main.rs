@@ -9,6 +9,7 @@ fn main() -> AppExit {
 		Tile::spawn_in(Grid {
 			height: 10,
 			width: 10,
+			scale: 10.,
 		}),
 	);
 
