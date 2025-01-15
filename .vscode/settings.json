@@ -35,6 +35,7 @@
 		"dtos",
 		"mockall",
 		"pathfinding",
+		"rrggbb",
 		"rrggbbaa",
 		"serde",
 		"Srgba",

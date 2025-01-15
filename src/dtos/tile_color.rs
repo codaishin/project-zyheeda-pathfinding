@@ -27,8 +27,9 @@ impl<'a> Deserialize<'a> for TileColor {
 		TDeserializer: Deserializer<'a>,
 	{
 		_TileColorString::deserialize(deserializer)?
-			.parse_color::<TDeserializer::Error>()
+			.parse_color()
 			.map(TileColor::from_parsed)
+			.map_err(_Error::convert_to_error)
 	}
 }
 
@@ -39,24 +40,29 @@ impl LoadFrom<TileColor> for ColorMaterial {
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
+/// A struct responsible of parsing hex encoded colors `#rrggbb` or `#rrggbbaa`
+/// to a bevy color for [`TileColor`]
+///
+///
+/// Let's be honest, the whole parsing process is hugely over-designed
+/// and could have been done with way fewer lines of code.
+///
+/// But what is life, if we are not enjoying ourselves?
+/// So scroll down and bask in the beauty of my nightly escapades :D
 struct _TileColorString {
 	color: String,
 }
 
 impl _TileColorString {
-	fn parse_color<TError>(self) -> Result<_Parsed<All>, TError>
-	where
-		TError: Error,
-	{
+	fn parse_color(self) -> Result<_Parsed<All>, _Error> {
 		let chars = &mut self.color.chars();
 
-		_Parsed::parse_prefix(chars)
-			.and_then(|parsed| parsed.parse_red(chars))
-			.and_then(|parsed| parsed.parse_blue(chars))
-			.and_then(|parsed| parsed.parse_green(chars))
-			.and_then(|parsed| parsed.parse_alpha(chars))
-			.and_then(|parsed| parsed.parse_end_of_string(chars))
-			.map_err(_Error::convert_to_error)
+		_Parsed::parse_prefix(chars)?
+			.parse_red(chars)?
+			.parse_blue(chars)?
+			.parse_green(chars)?
+			.parse_alpha(chars)?
+			.parse_end_of_string(chars)
 	}
 }
 
@@ -234,7 +240,7 @@ impl _Error {
 	where
 		TError: Error,
 	{
-		let base = "expected hex coded color (#rrggbbaa), but";
+		let base = "expected hex coded color (#rrggbb or #rrggbbaa), but";
 
 		match self {
 			_Error::EmptyString => TError::custom(format!("{base} it was empty")),
@@ -243,7 +249,7 @@ impl _Error {
 			_Error::Incomplete(c) => TError::custom(format!("{base} {c} was incomplete")),
 			_Error::FaultyBase(c) => TError::custom(format!("{base} {c} was not base 16")),
 			_Error::RemainingChars(rest) => {
-				TError::custom(format!("{base} it was followed by \"{rest}\""))
+				TError::custom(format!("{base} it had overflowing characters: \"{rest}\""))
 			}
 		}
 	}
