@@ -30,8 +30,8 @@ fn main() -> AppExit {
 		.add_systems(
 			Update,
 			(
-				Added::<Tile>::insert_asset::<ColorMaterial>(Path::new("tile/color.json")),
-				Added::<Tile>::insert_asset::<Mesh>(Path::new("tile/size.json")),
+				Added::<Tile>::insert_asset::<ColorMaterial>(Path::new("tile.json")),
+				Added::<Tile>::insert_asset::<Mesh>(Path::new("tile.json")),
 			),
 		);
 
