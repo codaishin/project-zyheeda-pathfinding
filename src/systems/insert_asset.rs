@@ -45,6 +45,7 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::assert_count;
 	use bevy::ecs::system::{RunSystemError, RunSystemOnce};
 
 	#[derive(Component)]
@@ -62,18 +63,6 @@ mod tests {
 		fn into_component(self) -> Self::TComponent {
 			_Component
 		}
-	}
-
-	macro_rules! assert_count {
-		($count:literal, $iter:expr) => {{
-			let materials = $iter.collect::<Vec<_>>();
-			let material_count = materials.len();
-
-			match <[_; $count]>::try_from(materials) {
-				Ok(materials) => materials,
-				_ => panic!("expected {} items, got {}", $count, material_count),
-			}
-		}};
 	}
 
 	fn setup() -> App {

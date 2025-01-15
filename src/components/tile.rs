@@ -88,20 +88,8 @@ impl Iterator for GridTranslations<'_> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::components::tile::Tile;
+	use crate::{assert_count, components::tile::Tile};
 	use bevy::ecs::system::{RunSystemError, RunSystemOnce};
-
-	macro_rules! get_entities {
-		($count:literal, $app:expr) => {{
-			let children = $app.world().iter_entities().collect::<Vec<_>>();
-			let len = children.len();
-
-			match <[_; $count]>::try_from(children) {
-				Ok(children) => children,
-				_ => panic!("expected {} child(ren), found {}", $count, len),
-			}
-		}};
-	}
 
 	fn setup() -> App {
 		App::new()
@@ -114,8 +102,7 @@ mod tests {
 		app.world_mut()
 			.run_system_once(Tile::spawn_in(Grid::default()))?;
 
-		let [entity] = get_entities!(1, app);
-
+		let [entity] = assert_count!(1, app.world().iter_entities());
 		assert_eq!(Some(&Tile), entity.get::<Tile>());
 		Ok(())
 	}
@@ -129,8 +116,7 @@ mod tests {
 			..default()
 		}))?;
 
-		let [a, b, c] = get_entities!(3, app);
-
+		let [a, b, c] = assert_count!(3, app.world().iter_entities());
 		assert_eq!(
 			(Some(&Tile), Some(&Tile), Some(&Tile),),
 			(a.get::<Tile>(), b.get::<Tile>(), c.get::<Tile>(),)
@@ -147,8 +133,7 @@ mod tests {
 			..default()
 		}))?;
 
-		let [a, b, c, d, e] = get_entities!(5, app);
-
+		let [a, b, c, d, e] = assert_count!(5, app.world().iter_entities());
 		assert_eq!(
 			(
 				Some(&Tile),
@@ -178,8 +163,7 @@ mod tests {
 			..default()
 		}))?;
 
-		let entities = get_entities!(9, app);
-
+		let entities = assert_count!(9, app.world().iter_entities());
 		assert_eq!(
 			[
 				Some(Vec3::new(-1., -1., 0.)),
@@ -207,8 +191,7 @@ mod tests {
 			..default()
 		}))?;
 
-		let entities = get_entities!(4, app);
-
+		let entities = assert_count!(4, app.world().iter_entities());
 		assert_eq!(
 			[
 				Some(Vec3::new(-0.5, -0.5, 0.)),
@@ -231,8 +214,7 @@ mod tests {
 			scale: 10.,
 		}))?;
 
-		let entities = get_entities!(4, app);
-
+		let entities = assert_count!(4, app.world().iter_entities());
 		assert_eq!(
 			[
 				Some(Vec3::new(-5., -5., 0.)),
