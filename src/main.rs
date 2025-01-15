@@ -1,9 +1,11 @@
 use bevy::{color::palettes::css::GRAY, prelude::*};
 use project_zyheeda_pathfinding::{
+	asset_loader::CustomAssetLoader,
 	components::{
 		player_camera::PlayerCamera,
 		tile::{Grid, Tile},
 	},
+	dtos::{tile_color::TileColor, tile_size::TileSize},
 	systems::insert_asset::InsertAssetSystem,
 };
 
@@ -11,6 +13,8 @@ fn main() -> AppExit {
 	let mut app = App::new();
 
 	app.add_plugins(DefaultPlugins)
+		.register_asset_loader(CustomAssetLoader::<ColorMaterial, TileColor>::default())
+		.register_asset_loader(CustomAssetLoader::<Mesh, TileSize>::default())
 		.add_systems(
 			Startup,
 			(
