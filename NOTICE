@@ -1,0 +1,11 @@
+NOTICE
+
+This project uses the following third-party software:
+
+1. Bevy (0.15.0)
+   License: Dual-licensed under MIT and Apache 2.0
+   Source: https://github.com/bevyengine/bevy
+
+This project lists direct dependencies only. Transitive dependencies, their licenses, and their attributions are managed by the respective upstream projects. For a full list of dependencies and their licenses, you can use the `cargo-license` tool or run `cargo tree` in the source code repository.
+
+This NOTICE file is provided for informational purposes only and is not intended to modify the terms of the licenses referenced above.

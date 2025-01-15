@@ -1,0 +1,38 @@
+{
+	"editor.inlayHints.enabled": "offUnlessPressed",
+	"editor.formatOnSave": true,
+	"editor.rulers": [
+		100
+	],
+	"files.insertFinalNewline": true,
+	"files.trimTrailingWhitespace": true,
+	"editor.tabSize": 2,
+	"editor.indentSize": "tabSize",
+	"editor.insertSpaces": false,
+	"rust-analyzer.check.command": "clippy",
+	"rust-analyzer.showUnlinkedFileNotification": false,
+	"rust-analyzer.rustfmt.extraArgs": [
+		"+nightly"
+	],
+	"[github-actions-workflow]": {
+		"editor.insertSpaces": true,
+	},
+	"editor.semanticTokenColorCustomizations": {
+		"rules": {
+			"comment": "#b42b2b",
+			"comment.documentation": "#2d8f3f"
+		},
+	},
+	"todo-tree.highlights.customHighlight": {
+		"FIXME": {
+			"foreground": "#000000",
+			"background": "#b42b2b",
+			"iconColour": "#b42b2b",
+			"gutterIcon": true
+		}
+	},
+	"cSpell.words": [
+		"pathfinding",
+		"zyheeda"
+	],
+}
