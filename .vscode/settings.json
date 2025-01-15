@@ -33,6 +33,7 @@
 	},
 	"cSpell.words": [
 		"dtos",
+		"mockall",
 		"pathfinding",
 		"serde",
 		"zyheeda"

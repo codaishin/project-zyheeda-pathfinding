@@ -6,11 +6,15 @@ This project uses the following third-party software:
    License: Dual-licensed under MIT and Apache 2.0
    Source: https://github.com/bevyengine/bevy
 
-2. Serde (1.0.215)
+2. Mockall (0.13.1)
+   License: Dual-licensed under MIT and Apache 2.0
+   Source: https://github.com/asomers/mockall
+
+3. Serde (1.0.215)
    License: Dual-licensed under MIT and Apache 2.0
    Source: https://github.com/serde-rs/serde
 
-3. Uuid (1.11.0)
+4. Uuid (1.11.0)
    License: Dual-licensed under MIT and Apache 2.0
    Source: https://github.com/uuid-rs/uuid
 
