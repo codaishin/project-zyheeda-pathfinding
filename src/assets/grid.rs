@@ -1,4 +1,7 @@
-use crate::traits::translations::Translations;
+use crate::{
+	components::tile_builder::TileBuilder,
+	traits::{into_component::IntoComponent, translations::Translations},
+};
 use bevy::prelude::*;
 
 #[derive(Asset, TypePath, Debug, PartialEq)]
@@ -19,6 +22,14 @@ impl Grid {
 impl Default for Grid {
 	fn default() -> Self {
 		Self::DEFAULT
+	}
+}
+
+impl IntoComponent for Handle<Grid> {
+	type TComponent = TileBuilder;
+
+	fn into_component(self) -> Self::TComponent {
+		TileBuilder(self)
 	}
 }
 
