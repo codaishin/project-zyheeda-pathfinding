@@ -9,6 +9,7 @@ use project_zyheeda_pathfinding::{
 		use_asset::UseAsset,
 	},
 	dtos::{grid_layout::GridLayout, tile_color::TileColor, tile_size::TileSize},
+	systems::spawn::Spawn,
 };
 
 fn main() -> AppExit {
