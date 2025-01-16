@@ -3,9 +3,9 @@ use crate::{parsers::parsed::ParsedNothing, traits::parse::Parse};
 use std::str::Chars;
 
 #[derive(Debug, PartialEq)]
-pub struct Prefix;
+pub struct HexPrefix;
 
-impl Parse for Prefix {
+impl Parse for HexPrefix {
 	type TRequired = ParsedNothing;
 	type TSource<'a> = Chars<'a>;
 	type TError = HexColorParseError;
@@ -18,6 +18,6 @@ impl Parse for Prefix {
 			return Err(HexColorParseError::InvalidPrefix(prefix));
 		}
 
-		Ok((Prefix, value))
+		Ok((HexPrefix, value))
 	}
 }

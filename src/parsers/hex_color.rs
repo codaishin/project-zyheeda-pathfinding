@@ -19,11 +19,13 @@ impl HexColorParseError {
 	where
 		TError: Error,
 	{
-		let base = "expected hex coded color (#rrggbb or #rrggbbaa), but";
+		let base = "expected hex coded color (\"#rrggbb\" or \"#rrggbbaa\"), but";
 
 		match self {
 			Self::EmptyString => TError::custom(format!("{base} it was empty")),
-			Self::InvalidPrefix(p) => TError::custom(format!("{base} it began with {p}")),
+			Self::InvalidPrefix(p) => {
+				TError::custom(format!("{base} it began with '{p}' instead if '#'"))
+			}
 			Self::Empty(c) => TError::custom(format!("{base} {c} was empty")),
 			Self::Incomplete(c) => TError::custom(format!("{base} {c} was incomplete")),
 			Self::FaultyBase(c) => TError::custom(format!("{base} {c} was not base 16")),

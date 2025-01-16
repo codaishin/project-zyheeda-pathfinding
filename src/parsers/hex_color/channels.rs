@@ -1,4 +1,4 @@
-use super::{prefix::Prefix, HexColorChanel, HexColorParseError};
+use super::{prefix::HexPrefix, HexColorChanel, HexColorParseError};
 use crate::{parsers::parsed::Parsed, traits::parse::Parse};
 use std::str::Chars;
 
@@ -31,7 +31,7 @@ macro_rules! parse_color {
 pub struct Red(pub u8);
 
 impl Parse for Red {
-	type TRequired = Parsed<(Prefix,)>;
+	type TRequired = Parsed<(HexPrefix,)>;
 	type TSource<'a> = Chars<'a>;
 	type TError = HexColorParseError;
 
@@ -43,7 +43,7 @@ impl Parse for Red {
 pub struct Green(pub u8);
 
 impl Parse for Green {
-	type TRequired = Parsed<(Prefix, Red)>;
+	type TRequired = Parsed<(HexPrefix, Red)>;
 	type TSource<'a> = Chars<'a>;
 	type TError = HexColorParseError;
 
@@ -55,7 +55,7 @@ impl Parse for Green {
 pub struct Blue(pub u8);
 
 impl Parse for Blue {
-	type TRequired = Parsed<(Prefix, Red, Green)>;
+	type TRequired = Parsed<(HexPrefix, Red, Green)>;
 	type TSource<'a> = Chars<'a>;
 	type TError = HexColorParseError;
 
@@ -67,7 +67,7 @@ impl Parse for Blue {
 pub struct Alpha(pub u8);
 
 impl Parse for Alpha {
-	type TRequired = Parsed<(Prefix, Red, Green, Blue)>;
+	type TRequired = Parsed<(HexPrefix, Red, Green, Blue)>;
 	type TSource<'a> = Chars<'a>;
 	type TError = HexColorParseError;
 

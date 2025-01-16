@@ -1,6 +1,6 @@
 use super::{
 	channels::{Alpha, Blue, Green, Red},
-	prefix::Prefix,
+	prefix::HexPrefix,
 	HexColorParseError,
 };
 use crate::{parsers::parsed::Parsed, traits::parse::Parse};
@@ -9,7 +9,7 @@ use std::str::Chars;
 pub struct NoSuffix;
 
 impl Parse for NoSuffix {
-	type TRequired = Parsed<(Prefix, Red, Green, Blue, Alpha)>;
+	type TRequired = Parsed<(HexPrefix, Red, Green, Blue, Alpha)>;
 	type TSource<'a> = Chars<'a>;
 	type TError = HexColorParseError;
 
