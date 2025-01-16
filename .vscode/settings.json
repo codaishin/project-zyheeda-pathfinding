@@ -32,7 +32,17 @@
 		}
 	},
 	"cSpell.words": [
+		"despawn",
+		"dtos",
+		"mockall",
 		"pathfinding",
+		"rrggbb",
+		"rrggbbaa",
+		"serde",
+		"Srgba",
 		"zyheeda"
+	],
+	"color-picker-universal.languages": [
+		"json"
 	],
 }
