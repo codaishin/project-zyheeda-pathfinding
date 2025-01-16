@@ -1,11 +1,9 @@
 use bevy::prelude::*;
 use project_zyheeda_pathfinding::{
 	asset_loader::CustomAssetLoader,
-	components::{
-		player_camera::PlayerCamera,
-		tile::{Grid, Tile},
-	},
-	dtos::{tile_color::TileColor, tile_size::TileSize},
+	assets::grid::Grid,
+	components::{player_camera::PlayerCamera, tile::Tile},
+	dtos::{grid_layout::GridLayout, tile_color::TileColor, tile_size::TileSize},
 	systems::insert_asset::InsertAssetSystem,
 };
 use std::path::Path;
@@ -14,6 +12,7 @@ fn main() -> AppExit {
 	let mut app = App::new();
 
 	app.add_plugins(DefaultPlugins)
+		.register_asset_loader(CustomAssetLoader::<Grid, GridLayout>::default())
 		.register_asset_loader(CustomAssetLoader::<ColorMaterial, TileColor>::default())
 		.register_asset_loader(CustomAssetLoader::<Mesh, TileSize>::default())
 		.add_systems(

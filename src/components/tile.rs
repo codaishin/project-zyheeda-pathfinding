@@ -1,3 +1,4 @@
+use crate::{assets::grid::Grid, traits::translations::Translations};
 use bevy::prelude::*;
 
 #[derive(Component, Debug, PartialEq)]
@@ -11,77 +12,6 @@ impl Tile {
 				commands.spawn((Tile, Transform::from_translation(translation)));
 			}
 		}
-	}
-}
-
-pub struct Grid {
-	pub height: usize,
-	pub width: usize,
-	pub scale: f32,
-}
-
-impl Grid {
-	fn translations(&self) -> GridTranslations {
-		GridTranslations {
-			grid: self,
-			width: 1.,
-			height: 1.,
-			offset: -Vec3::new(
-				(self.width + 1) as f32 / 2.,
-				(self.height + 1) as f32 / 2.,
-				0.,
-			),
-		}
-	}
-}
-
-impl Default for Grid {
-	fn default() -> Self {
-		Self {
-			height: 1,
-			width: 1,
-			scale: 1.,
-		}
-	}
-}
-
-struct GridTranslations<'a> {
-	width: f32,
-	height: f32,
-	offset: Vec3,
-	grid: &'a Grid,
-}
-
-impl GridTranslations<'_> {
-	fn out_of_bounds(&self) -> bool {
-		self.width > self.grid.width as f32
-	}
-
-	fn iterate(&mut self) {
-		self.height += 1.;
-
-		if self.height <= self.grid.height as f32 {
-			return;
-		}
-
-		self.width += 1.;
-		self.height = 1.;
-	}
-}
-
-impl Iterator for GridTranslations<'_> {
-	type Item = Vec3;
-
-	fn next(&mut self) -> Option<Self::Item> {
-		if self.out_of_bounds() {
-			return None;
-		}
-
-		let translation = Vec3::new(self.width, self.height, 0.);
-
-		self.iterate();
-
-		Some((translation + self.offset) * self.grid.scale)
 	}
 }
 

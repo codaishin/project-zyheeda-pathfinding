@@ -1,4 +1,5 @@
 pub mod asset_loader;
+pub mod assets;
 pub mod components;
 pub mod dtos;
 pub mod errors;
