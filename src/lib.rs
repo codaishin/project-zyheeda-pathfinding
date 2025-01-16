@@ -2,6 +2,7 @@ pub mod asset_loader;
 pub mod components;
 pub mod dtos;
 pub mod errors;
+pub mod parsers;
 pub mod systems;
 pub mod traits;
 
