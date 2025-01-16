@@ -18,7 +18,7 @@ impl<'a> StringParser<'a, ParsedNothing> {
 
 	pub fn parse<TFirst>(self) -> Result<StringParser<'a, Parsed<(TFirst,)>>, TFirst::TError>
 	where
-		TFirst: Parse<TRequiresParsed = ParsedNothing, TSource<'a> = Chars<'a>>,
+		TFirst: Parse<TRequired = ParsedNothing, TSource<'a> = Chars<'a>>,
 	{
 		let (first, remaining) = TFirst::parse(self.remaining)?;
 
@@ -35,11 +35,17 @@ impl<'a, T> StringParser<'a, Parsed<T>>
 where
 	Parsed<T>: Concat,
 {
+	pub fn unpack(self) -> T {
+		let StringParser { parsed, .. } = self;
+
+		parsed.unpack()
+	}
+
 	pub fn parse<TNext>(
 		self,
 	) -> Result<StringParser<'a, ConcatParsedResult<T, TNext>>, TNext::TError>
 	where
-		TNext: Parse<TRequiresParsed = Parsed<T>, TSource<'a> = Chars<'a>>,
+		TNext: Parse<TRequired = Parsed<T>, TSource<'a> = Chars<'a>>,
 	{
 		let (next, remaining) = TNext::parse(self.remaining)?;
 
@@ -55,31 +61,6 @@ mod tests {
 	use super::*;
 	use crate::traits::concat::Concat;
 
-	impl<T> PartialEq for StringParser<'_, T>
-	where
-		T: PartialEq,
-	{
-		fn eq(&self, other: &Self) -> bool {
-			if self.parsed != other.parsed {
-				return false;
-			}
-
-			if self.remaining.clone().count() != other.remaining.clone().count() {
-				return false;
-			}
-
-			let mut other_remaining = other.remaining.clone();
-			for s in self.remaining.clone() {
-				let o = other_remaining.next().unwrap();
-				if s != o {
-					return false;
-				}
-			}
-
-			true
-		}
-	}
-
 	#[derive(Debug, PartialEq)]
 	struct _Error;
 
@@ -87,16 +68,12 @@ mod tests {
 	struct _First;
 
 	impl Parse for _First {
-		type TRequiresParsed = ParsedNothing;
+		type TRequired = ParsedNothing;
 		type TSource<'a> = Chars<'a>;
 		type TError = _Error;
 
-		fn parse(mut value: Self::TSource<'_>) -> Result<(Self, Self::TSource<'_>), Self::TError> {
-			let str = [(); 3].map(|_| value.next());
-			match str.iter().filter_map(|c| *c).collect::<String>().as_str() {
-				"fst" => Ok((_First, value)),
-				_ => Err(_Error),
-			}
+		fn parse(value: Self::TSource<'_>) -> Result<(Self, Self::TSource<'_>), Self::TError> {
+			Ok((_First, value))
 		}
 	}
 
@@ -104,16 +81,12 @@ mod tests {
 	struct _Second;
 
 	impl Parse for _Second {
-		type TRequiresParsed = Parsed<(_First,)>;
+		type TRequired = Parsed<(_First,)>;
 		type TSource<'a> = Chars<'a>;
 		type TError = _Error;
 
-		fn parse(mut value: Self::TSource<'_>) -> Result<(Self, Self::TSource<'_>), Self::TError> {
-			let str = [(); 3].map(|_| value.next());
-			match str.iter().filter_map(|c| *c).collect::<String>().as_str() {
-				"snd" => Ok((_Second, value)),
-				_ => Err(_Error),
-			}
+		fn parse(value: Self::TSource<'_>) -> Result<(Self, Self::TSource<'_>), Self::TError> {
+			Ok((_Second, value))
 		}
 	}
 
@@ -124,13 +97,7 @@ mod tests {
 
 		let parser = parser.parse::<_First>();
 
-		assert_eq!(
-			Ok(StringParser {
-				remaining: "".chars(),
-				parsed: ParsedNothing.concat(_First)
-			}),
-			parser,
-		)
+		assert_eq!(Ok((_First,)), parser.map(StringParser::unpack))
 	}
 
 	#[test]
@@ -143,12 +110,6 @@ mod tests {
 
 		let parser = parser.parse::<_Second>();
 
-		assert_eq!(
-			Ok(StringParser {
-				remaining: "".chars(),
-				parsed: ParsedNothing.concat(_First).concat(_Second)
-			}),
-			parser,
-		)
+		assert_eq!(Ok((_First, _Second,)), parser.map(StringParser::unpack))
 	}
 }

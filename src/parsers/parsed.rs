@@ -3,6 +3,14 @@ use crate::traits::concat::Concat;
 #[derive(Debug, PartialEq)]
 pub struct Parsed<T>(T);
 
+impl<T> Parsed<T> {
+	pub fn unpack(self) -> T {
+		let Parsed(parsed) = self;
+
+		parsed
+	}
+}
+
 #[derive(Debug, PartialEq)]
 pub struct ParsedNothing;
 

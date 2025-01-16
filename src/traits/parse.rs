@@ -2,7 +2,7 @@ pub trait Parse
 where
 	Self: Sized,
 {
-	type TRequiresParsed;
+	type TRequired;
 	type TSource<'a>;
 	type TError;
 
