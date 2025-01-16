@@ -2,9 +2,9 @@ use bevy::prelude::*;
 use project_zyheeda_pathfinding::{
 	asset_loader::CustomAssetLoader,
 	assets::grid::Grid,
-	components::{player_camera::PlayerCamera, tile::Tile},
+	components::{player_camera::PlayerCamera, tile::Tile, use_asset::UseAsset},
 	dtos::{grid_layout::GridLayout, tile_color::TileColor, tile_size::TileSize},
-	systems::{insert_asset::InsertAssetSystem, load::Load, spawn_grid::SpawnComponents},
+	systems::{load::Load, spawn_grid::SpawnComponents},
 };
 use std::path::Path;
 
@@ -23,12 +23,11 @@ fn main() -> AppExit {
 		.add_systems(
 			Update,
 			(
-				Grid::spawn::<Tile>,
-				Added::<Tile>::insert_asset::<ColorMaterial>(Path::new("tile.json")),
-				Added::<Tile>::insert_asset::<Mesh>(Path::new("tile.json")),
-			)
-				.chain(),
-		);
+				UseAsset::<ColorMaterial>::insert_system,
+				UseAsset::<Mesh>::insert_system,
+			),
+		)
+		.add_systems(Update, Grid::spawn::<Tile>);
 
 	app.run()
 }
