@@ -46,7 +46,6 @@ mod tests {
 	use crate::{new_handle, new_mock, test_tools::SingleThreaded};
 	use bevy::ecs::system::{RunSystemError, RunSystemOnce};
 	use mockall::{automock, predicate::eq};
-	use uuid::Uuid;
 
 	#[derive(Component)]
 	struct _Target;

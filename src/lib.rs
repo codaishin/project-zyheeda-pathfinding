@@ -4,6 +4,7 @@ pub mod components;
 pub mod dtos;
 pub mod errors;
 pub mod parsers;
+pub mod resources;
 pub mod systems;
 pub mod traits;
 

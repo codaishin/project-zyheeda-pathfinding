@@ -24,7 +24,7 @@ macro_rules! assert_count {
 macro_rules! new_handle {
 	($ty:ty) => {
 		Handle::<$ty>::Weak(AssetId::Uuid {
-			uuid: Uuid::new_v4(),
+			uuid: uuid::Uuid::new_v4(),
 		})
 	};
 }
