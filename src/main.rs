@@ -29,15 +29,6 @@ fn main() -> AppExit {
 		.register_asset_loader(CustomAssetLoader::<Mesh, TileSize>::default())
 		.add_systems(Startup, (PlayerCamera::spawn, TileGrid::spawn))
 		.add_systems(Update, MouseWorldPosition::update_using::<PlayerCamera>)
-		.add_systems(
-			Update,
-			(
-				UseAsset::<ColorMaterial>::insert_system,
-				UseAsset::<Mesh>::insert_system,
-				UseAsset::<Grid>::insert_system,
-				UseAsset::<TileColliderDefinition>::insert_system,
-			),
-		)
 		.add_systems(Update, TileBuilder::<Grid>::spawn_tiles)
 		.add_systems(
 			Update,
@@ -45,6 +36,10 @@ fn main() -> AppExit {
 				Clickable::update_using::<TileCollider>,
 				Clickable::toggle::<Obstacle>,
 				Obstacle::update_color,
+				UseAsset::<ColorMaterial>::insert_system,
+				UseAsset::<Mesh>::insert_system,
+				UseAsset::<Grid>::insert_system,
+				UseAsset::<TileColliderDefinition>::insert_system,
 			)
 				.chain(),
 		);
