@@ -43,8 +43,10 @@ fn main() -> AppExit {
 			Update,
 			(
 				Clickable::update_using::<TileCollider>,
-				Clickable::insert_or_remove::<Obstacle>,
-			),
+				Clickable::toggle::<Obstacle>,
+				Obstacle::update_color,
+			)
+				.chain(),
 		);
 
 	app.run()
