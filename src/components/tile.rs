@@ -6,8 +6,8 @@ use std::path::Path;
 #[require(
 	Transform,
 	Visibility,
-	UseAsset::<Mesh>(Tile::mesh),
-	UseAsset::<ColorMaterial>(Tile::color),
+	UseAsset<Mesh>(Tile::mesh),
+	UseAsset<ColorMaterial>(Tile::color),
 )]
 pub struct Tile;
 
@@ -18,7 +18,7 @@ impl Tile {
 		UseAsset::new(Path::new(Self::ASSET_PATH))
 	}
 
-	fn mesh() -> UseAsset<Mesh> {
+	pub fn mesh() -> UseAsset<Mesh> {
 		UseAsset::new(Path::new(Self::ASSET_PATH))
 	}
 }

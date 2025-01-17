@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use std::path::Path;
 
 #[derive(Component, Debug, PartialEq, Default)]
-#[require(Transform, Visibility, UseAsset::<Grid>(TileGrid::grid))]
+#[require(Transform, Visibility, UseAsset<Grid>(TileGrid::grid))]
 pub struct TileGrid;
 
 impl TileGrid {
