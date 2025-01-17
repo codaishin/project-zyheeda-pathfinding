@@ -1,5 +1,3 @@
-use std::{hash::Hash, marker::PhantomData};
-
 use crate::{
 	resources::mouse_world_position::MouseWorldPosition,
 	traits::{
@@ -9,6 +7,7 @@ use crate::{
 	},
 };
 use bevy::prelude::*;
+use std::{hash::Hash, marker::PhantomData};
 
 #[derive(Component, Debug, PartialEq, Default)]
 pub struct Clickable<TKeyDefinition>
@@ -24,6 +23,37 @@ where
 	TKeyDefinition: GetKey + Sync + Send + 'static,
 	TKeyDefinition::TKey: Copy + Eq + Hash + Send + Sync + 'static,
 {
+	fn set_clicked<TCollider>(
+		mut clickable: Mut<Clickable<TKeyDefinition>>,
+		collider: &TCollider,
+		transform: &Transform,
+		colliders: &Res<Assets<TCollider::TAsset>>,
+		mouse_position: Vec2,
+	) where
+		TCollider: Component + AssetHandle,
+		TCollider::TAsset: IsPointHit,
+	{
+		let Some(collider) = colliders.get(collider.get_handle()) else {
+			return;
+		};
+
+		let relative_mouse_position = Relative::position(mouse_position).to(transform);
+
+		if clickable.clicked == collider.is_point_hit(relative_mouse_position) {
+			return;
+		};
+
+		clickable.clicked = !clickable.clicked;
+	}
+
+	fn set_not_clicked(mut clickable: Mut<Clickable<TKeyDefinition>>) {
+		if !clickable.clicked {
+			return;
+		}
+
+		clickable.clicked = false;
+	}
+
 	pub fn detect_click_on<TCollider>(
 		mut entities: Query<(&mut Self, &TCollider, &Transform)>,
 		colliders: Res<Assets<TCollider::TAsset>>,
@@ -33,25 +63,17 @@ where
 		TCollider: Component + AssetHandle,
 		TCollider::TAsset: IsPointHit,
 	{
-		if !input.pressed(TKeyDefinition::get_key()) {
-			return;
-		}
+		let pressed = input.pressed(TKeyDefinition::get_key());
 
-		let MouseWorldPosition(Some(mouse_position)) = *mouse_world_position else {
+		let MouseWorldPosition(Some(position)) = *mouse_world_position else {
 			return;
 		};
 
-		for (mut clickable, collider, transform) in &mut entities {
-			let Some(collider) = colliders.get(collider.get_handle()) else {
-				continue;
-			};
-			let relative_mouse_position = Relative::position(mouse_position).to(transform);
-
-			if clickable.clicked == collider.is_point_hit(relative_mouse_position) {
-				continue;
-			};
-
-			clickable.clicked = !clickable.clicked;
+		for (clickable, collider, transform) in &mut entities {
+			match pressed {
+				false => Self::set_not_clicked(clickable),
+				true => Self::set_clicked(clickable, collider, transform, &colliders, position),
+			}
 		}
 	}
 
@@ -156,7 +178,7 @@ mod test_update {
 	enum _Device {
 		Pressed(Option<Vec2>),
 		Held(Option<Vec2>),
-		Rest,
+		Released,
 	}
 
 	fn setup(
@@ -177,7 +199,7 @@ mod test_update {
 				mouse_input.clear_just_pressed(_DeviceKey);
 				mouse_position
 			}
-			_Device::Rest => Some(Vec2::default()),
+			_Device::Released => Some(Vec2::default()),
 		});
 
 		assets.insert(handle, collider_asset);
@@ -316,19 +338,19 @@ mod test_update {
 	}
 
 	#[test]
-	fn do_nothing_if_not_mouse_right_clicked() -> Result<(), RunSystemError> {
+	fn set_not_clicked_when_released() -> Result<(), RunSystemError> {
 		let asset = _ColliderAsset {
 			mock: new_mock!(Mock_ColliderAsset, |mock| {
 				mock.expect_is_point_hit().never().return_const(true);
 			}),
 		};
 		let handle = new_handle!(_ColliderAsset);
-		let mut app = setup(&handle, asset, _Device::Rest);
+		let mut app = setup(&handle, asset, _Device::Released);
 		let entity = app
 			.world_mut()
 			.spawn((
 				Clickable::<_Button> {
-					clicked: false,
+					clicked: true,
 					..default()
 				},
 				_Collider(handle),
@@ -394,7 +416,7 @@ mod test_update {
 	}
 
 	#[test]
-	fn do_not_mut_deref_clickable_when_nothing_changed() {
+	fn do_not_mut_deref_clickable_when_nothing_changed_on_hold() {
 		let asset = _ColliderAsset {
 			mock: new_mock!(Mock_ColliderAsset, |mock| {
 				mock.expect_is_point_hit().return_const(true);
@@ -407,6 +429,43 @@ mod test_update {
 			.spawn((
 				Clickable::<_Button> {
 					clicked: true,
+					..default()
+				},
+				_Collider(handle),
+			))
+			.id();
+
+		app.add_systems(
+			Update,
+			(
+				Clickable::<_Button>::detect_click_on::<_Collider>,
+				_Changed::detect,
+			)
+				.chain(),
+		);
+		app.update();
+		app.update();
+
+		assert_eq!(
+			Some(&_Changed(false)),
+			app.world().entity(entity).get::<_Changed>(),
+		);
+	}
+
+	#[test]
+	fn do_not_mut_deref_clickable_when_nothing_changed_on_released() {
+		let asset = _ColliderAsset {
+			mock: new_mock!(Mock_ColliderAsset, |mock| {
+				mock.expect_is_point_hit().return_const(true);
+			}),
+		};
+		let handle = new_handle!(_ColliderAsset);
+		let mut app = setup(&handle, asset, _Device::Released);
+		let entity = app
+			.world_mut()
+			.spawn((
+				Clickable::<_Button> {
+					clicked: false,
 					..default()
 				},
 				_Collider(handle),
