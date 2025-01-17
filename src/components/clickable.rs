@@ -22,7 +22,7 @@ impl Clickable {
 		TCollider: Component + AssetHandle,
 		TCollider::TAsset: IsPointHit,
 	{
-		if !mouse_input.just_pressed(MouseButton::Right) {
+		if !mouse_input.pressed(MouseButton::Right) {
 			return;
 		}
 
@@ -35,7 +35,12 @@ impl Clickable {
 				continue;
 			};
 			let relative_mouse_position = Relative::position(mouse_position).to(transform);
-			clickable.clicked = collider.is_point_hit(relative_mouse_position);
+
+			if clickable.clicked == collider.is_point_hit(relative_mouse_position) {
+				continue;
+			};
+
+			clickable.clicked = !clickable.clicked;
 		}
 	}
 
@@ -272,10 +277,10 @@ mod test_update {
 	}
 
 	#[test]
-	fn do_nothing_if_not_mouse_just_right_clicked() -> Result<(), RunSystemError> {
+	fn also_react_to_longer_mouse_hold() -> Result<(), RunSystemError> {
 		let asset = _ColliderAsset {
 			mock: new_mock!(Mock_ColliderAsset, |mock| {
-				mock.expect_is_point_hit().never().return_const(true);
+				mock.expect_is_point_hit().return_const(true);
 			}),
 		};
 		let handle = new_handle!(_ColliderAsset);
@@ -289,10 +294,49 @@ mod test_update {
 			.run_system_once(Clickable::update_using::<_Collider>)?;
 
 		assert_eq!(
-			Some(&Clickable { clicked: false }),
+			Some(&Clickable { clicked: true }),
 			app.world().entity(entity).get::<Clickable>(),
 		);
 		Ok(())
+	}
+
+	#[derive(Component, Debug, PartialEq)]
+	struct _Changed(bool);
+
+	impl _Changed {
+		fn detect(mut commands: Commands, entities: Query<(Entity, Ref<Clickable>)>) {
+			for (entity, clickable) in &entities {
+				let mut entity = commands.entity(entity);
+				entity.insert(_Changed(clickable.is_changed()));
+			}
+		}
+	}
+
+	#[test]
+	fn do_not_mut_deref_clickable_when_nothing_changed() {
+		let asset = _ColliderAsset {
+			mock: new_mock!(Mock_ColliderAsset, |mock| {
+				mock.expect_is_point_hit().return_const(true);
+			}),
+		};
+		let handle = new_handle!(_ColliderAsset);
+		let mut app = setup(&handle, asset, _MouseClick::RightHold(Some(Vec2::ZERO)));
+		let entity = app
+			.world_mut()
+			.spawn((Clickable { clicked: true }, _Collider(handle)))
+			.id();
+
+		app.add_systems(
+			Update,
+			(Clickable::update_using::<_Collider>, _Changed::detect).chain(),
+		);
+		app.update();
+		app.update();
+
+		assert_eq!(
+			Some(&_Changed(false)),
+			app.world().entity(entity).get::<_Changed>(),
+		);
 	}
 }
 
