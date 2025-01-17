@@ -32,8 +32,9 @@ macro_rules! new_handle {
 #[macro_export]
 macro_rules! new_mock {
 	($ty:ty, $setup:expr) => {{
+		let setup: &dyn Fn(&mut $ty) = &$setup;
 		let mut mock = <$ty>::default();
-		$setup(&mut mock);
+		setup(&mut mock);
 		mock
 	}};
 }

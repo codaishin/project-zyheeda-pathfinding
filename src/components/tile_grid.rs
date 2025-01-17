@@ -4,13 +4,13 @@ use bevy::prelude::*;
 use std::path::Path;
 
 #[derive(Component, Debug, PartialEq, Default)]
-#[require(Transform, Visibility, UseAsset::<Grid>(TileGrid::grid))]
+#[require(Transform, Visibility, UseAsset<Grid>(TileGrid::asset))]
 pub struct TileGrid;
 
 impl TileGrid {
 	const ASSET_PATH: &str = "grid.json";
 
-	fn grid() -> UseAsset<Grid> {
+	fn asset() -> UseAsset<Grid> {
 		UseAsset::new(Path::new(Self::ASSET_PATH))
 	}
 }

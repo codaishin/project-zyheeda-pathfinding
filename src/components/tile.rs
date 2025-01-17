@@ -1,4 +1,5 @@
-use super::use_asset::UseAsset;
+use super::{clickable::Clickable, use_asset::UseAsset};
+use crate::assets::tile_collider_definition::TileColliderDefinition;
 use bevy::prelude::*;
 use std::path::Path;
 
@@ -6,19 +7,20 @@ use std::path::Path;
 #[require(
 	Transform,
 	Visibility,
-	UseAsset::<Mesh>(Tile::mesh),
-	UseAsset::<ColorMaterial>(Tile::color),
+	UseAsset<Mesh>(Tile::asset),
+	UseAsset<ColorMaterial>(Tile::asset),
+	UseAsset<TileColliderDefinition>(Tile::asset),
+	Clickable,
 )]
 pub struct Tile;
 
 impl Tile {
 	const ASSET_PATH: &str = "tile.json";
 
-	fn color() -> UseAsset<ColorMaterial> {
-		UseAsset::new(Path::new(Self::ASSET_PATH))
-	}
-
-	fn mesh() -> UseAsset<Mesh> {
+	pub fn asset<TAsset>() -> UseAsset<TAsset>
+	where
+		TAsset: Asset,
+	{
 		UseAsset::new(Path::new(Self::ASSET_PATH))
 	}
 }

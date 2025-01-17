@@ -1,5 +1,8 @@
+pub mod asset_handle;
 pub mod concat;
+pub mod get_mouse_ray;
 pub mod into_component;
+pub mod is_point_hit;
 pub mod load_asset;
 pub mod load_from;
 pub mod parse;

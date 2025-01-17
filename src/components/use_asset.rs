@@ -2,7 +2,7 @@ use crate::traits::{into_component::IntoComponent, load_asset::LoadAsset};
 use bevy::prelude::*;
 use std::{marker::PhantomData, path::Path};
 
-#[derive(Component, Debug, PartialEq)]
+#[derive(Component, Debug, Clone)]
 pub struct UseAsset<TAsset, TAssetServer = AssetServer>
 where
 	TAsset: Asset,
@@ -27,7 +27,7 @@ where
 	pub fn insert_system(
 		mut commands: Commands,
 		asset_server: Res<TAssetServer>,
-		entities: Query<(Entity, &Self), Added<Self>>,
+		entities: Query<(Entity, &Self), Changed<Self>>,
 	) where
 		Handle<TAsset>: IntoComponent,
 	{
@@ -41,8 +41,19 @@ where
 	}
 }
 
+impl<TAsset> PartialEq for UseAsset<TAsset>
+where
+	TAsset: Asset,
+{
+	fn eq(&self, other: &Self) -> bool {
+		self.path == other.path
+	}
+}
+
 #[cfg(test)]
 mod tests {
+	use std::ops::DerefMut;
+
 	use super::*;
 	use crate::{new_handle, new_mock, test_tools::SingleThreaded, traits::load_asset::LoadAsset};
 	use mockall::{automock, predicate::eq};
@@ -101,13 +112,12 @@ mod tests {
 		let mut app = setup();
 		app.world_mut().spawn(_UseAsset::new(Path::new("my/path")));
 
-		app.world_mut().resource_mut::<_AssetServer>().mock =
-			new_mock!(Mock_AssetServer, |mock: &mut Mock_AssetServer| {
-				mock.expect_load_asset::<_Asset>()
-					.times(1)
-					.with(eq(Path::new("my/path")))
-					.return_const(new_handle!(_Asset));
-			});
+		app.world_mut().resource_mut::<_AssetServer>().mock = new_mock!(Mock_AssetServer, |mock| {
+			mock.expect_load_asset::<_Asset>()
+				.times(1)
+				.with(eq(Path::new("my/path")))
+				.return_const(new_handle!(_Asset));
+		});
 
 		app.update();
 	}
@@ -120,11 +130,10 @@ mod tests {
 			.world_mut()
 			.spawn(_UseAsset::new(Path::new("my/path")))
 			.id();
-		app.world_mut().resource_mut::<_AssetServer>().mock =
-			new_mock!(Mock_AssetServer, |mock: &mut Mock_AssetServer| {
-				mock.expect_load_asset::<_Asset>()
-					.return_const(handle.clone());
-			});
+		app.world_mut().resource_mut::<_AssetServer>().mock = new_mock!(Mock_AssetServer, |mock| {
+			mock.expect_load_asset::<_Asset>()
+				.return_const(handle.clone());
+		});
 
 		app.update();
 
@@ -139,14 +148,34 @@ mod tests {
 		let mut app = setup();
 		app.world_mut().spawn(_UseAsset::new(Path::new("my/path")));
 
-		app.world_mut().resource_mut::<_AssetServer>().mock =
-			new_mock!(Mock_AssetServer, |mock: &mut Mock_AssetServer| {
-				mock.expect_load_asset::<_Asset>()
-					.times(1)
-					.return_const(new_handle!(_Asset));
-			});
+		app.world_mut().resource_mut::<_AssetServer>().mock = new_mock!(Mock_AssetServer, |mock| {
+			mock.expect_load_asset::<_Asset>()
+				.times(1)
+				.return_const(new_handle!(_Asset));
+		});
 
 		app.update();
+		app.update();
+	}
+
+	#[test]
+	fn load_again_after_mut_deref() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn(_UseAsset::new(Path::new("my/path")))
+			.id();
+
+		app.world_mut().resource_mut::<_AssetServer>().mock = new_mock!(Mock_AssetServer, |mock| {
+			mock.expect_load_asset::<_Asset>()
+				.times(2)
+				.return_const(new_handle!(_Asset));
+		});
+
+		app.update();
+		let mut use_asset = app.world_mut().entity_mut(entity);
+		let mut use_asset = use_asset.get_mut::<_UseAsset>().unwrap();
+		use_asset.deref_mut();
 		app.update();
 	}
 }

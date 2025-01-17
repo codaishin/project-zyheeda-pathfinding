@@ -1,14 +1,18 @@
 use bevy::prelude::*;
 use project_zyheeda_pathfinding::{
 	asset_loader::CustomAssetLoader,
-	assets::grid::Grid,
+	assets::{grid::Grid, tile_collider_definition::TileColliderDefinition},
 	components::{
+		clickable::Clickable,
+		obstacle::Obstacle,
 		player_camera::PlayerCamera,
 		tile_builder::TileBuilder,
+		tile_collider::TileCollider,
 		tile_grid::TileGrid,
 		use_asset::UseAsset,
 	},
 	dtos::{grid_layout::GridLayout, tile_color::TileColor, tile_size::TileSize},
+	resources::mouse_world_position::MouseWorldPosition,
 	systems::spawn::Spawn,
 };
 
@@ -17,19 +21,28 @@ fn main() -> AppExit {
 
 	app.add_plugins(DefaultPlugins)
 		.init_asset::<Grid>()
+		.init_asset::<TileColliderDefinition>()
+		.init_resource::<MouseWorldPosition>()
 		.register_asset_loader(CustomAssetLoader::<Grid, GridLayout>::default())
+		.register_asset_loader(CustomAssetLoader::<TileColliderDefinition, TileSize>::default())
 		.register_asset_loader(CustomAssetLoader::<ColorMaterial, TileColor>::default())
 		.register_asset_loader(CustomAssetLoader::<Mesh, TileSize>::default())
 		.add_systems(Startup, (PlayerCamera::spawn, TileGrid::spawn))
+		.add_systems(Update, MouseWorldPosition::update_using::<PlayerCamera>)
+		.add_systems(Update, TileBuilder::<Grid>::spawn_tiles)
 		.add_systems(
 			Update,
 			(
+				Clickable::update_using::<TileCollider>,
+				Clickable::toggle::<Obstacle>,
+				Obstacle::update_color,
 				UseAsset::<ColorMaterial>::insert_system,
 				UseAsset::<Mesh>::insert_system,
 				UseAsset::<Grid>::insert_system,
-			),
-		)
-		.add_systems(Update, TileBuilder::<Grid>::spawn_tiles);
+				UseAsset::<TileColliderDefinition>::insert_system,
+			)
+				.chain(),
+		);
 
 	app.run()
 }
