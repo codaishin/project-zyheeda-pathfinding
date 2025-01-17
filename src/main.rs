@@ -3,8 +3,10 @@ use project_zyheeda_pathfinding::{
 	asset_loader::CustomAssetLoader,
 	assets::{grid::Grid, tile_collider_definition::TileColliderDefinition},
 	components::{
+		clickable::Clickable,
 		player_camera::PlayerCamera,
 		tile_builder::TileBuilder,
+		tile_collider::TileCollider,
 		tile_grid::TileGrid,
 		use_asset::UseAsset,
 	},
@@ -35,7 +37,8 @@ fn main() -> AppExit {
 				UseAsset::<TileColliderDefinition>::insert_system,
 			),
 		)
-		.add_systems(Update, TileBuilder::<Grid>::spawn_tiles);
+		.add_systems(Update, TileBuilder::<Grid>::spawn_tiles)
+		.add_systems(Update, Clickable::update_using::<TileCollider>);
 
 	app.run()
 }

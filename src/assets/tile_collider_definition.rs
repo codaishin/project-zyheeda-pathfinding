@@ -2,7 +2,7 @@ use crate::{
 	components::tile_collider::TileCollider,
 	traits::{
 		into_component::IntoComponent,
-		is_hit::{IsHit, Relative},
+		is_point_hit::{IsPointHit, Relative},
 	},
 };
 use bevy::prelude::*;
@@ -21,8 +21,9 @@ impl IntoComponent for Handle<TileColliderDefinition> {
 	}
 }
 
-impl IsHit for TileColliderDefinition {
-	fn is_hit(&self, Relative(Vec2 { x, y }): Relative) -> bool {
+impl IsPointHit for TileColliderDefinition {
+	fn is_point_hit(&self, position: Relative) -> bool {
+		let Vec2 { x, y } = *position;
 		x.abs() <= self.half_width && y.abs() <= self.half_height
 	}
 }
@@ -38,7 +39,7 @@ mod tests {
 			half_height: 3.,
 		};
 
-		assert!(tile.is_hit(Relative(Vec2::new(4., 2.))));
+		assert!(tile.is_point_hit(Relative::new(Vec2::new(4., 2.))));
 	}
 
 	#[test]
@@ -48,7 +49,7 @@ mod tests {
 			half_height: 3.,
 		};
 
-		assert!(!tile.is_hit(Relative(Vec2::new(6., 2.))));
+		assert!(!tile.is_point_hit(Relative::new(Vec2::new(6., 2.))));
 	}
 
 	#[test]
@@ -58,7 +59,7 @@ mod tests {
 			half_height: 3.,
 		};
 
-		assert!(!tile.is_hit(Relative(Vec2::new(-6., 2.))));
+		assert!(!tile.is_point_hit(Relative::new(Vec2::new(-6., 2.))));
 	}
 
 	#[test]
@@ -68,7 +69,7 @@ mod tests {
 			half_height: 3.,
 		};
 
-		assert!(!tile.is_hit(Relative(Vec2::new(1., 4.))));
+		assert!(!tile.is_point_hit(Relative::new(Vec2::new(1., 4.))));
 	}
 
 	#[test]
@@ -78,7 +79,7 @@ mod tests {
 			half_height: 3.,
 		};
 
-		assert!(!tile.is_hit(Relative(Vec2::new(1., -4.))));
+		assert!(!tile.is_point_hit(Relative::new(Vec2::new(1., -4.))));
 	}
 
 	#[test]
@@ -88,6 +89,6 @@ mod tests {
 			half_height: 3.,
 		};
 
-		assert!(tile.is_hit(Relative(Vec2::new(5., 3.))));
+		assert!(tile.is_point_hit(Relative::new(Vec2::new(5., 3.))));
 	}
 }

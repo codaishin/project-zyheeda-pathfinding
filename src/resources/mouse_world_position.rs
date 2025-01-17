@@ -1,10 +1,9 @@
-use std::ops::DerefMut;
-
 use crate::traits::get_mouse_ray::{GetMouseRay, MouseRayCaster};
 use bevy::prelude::*;
+use std::ops::DerefMut;
 
 #[derive(Resource, Debug, PartialEq, Default)]
-pub struct MouseWorldPosition(Option<Vec3>);
+pub struct MouseWorldPosition(pub Option<Vec2>);
 
 impl MouseWorldPosition {
 	pub fn update_using<TCamera>(
@@ -22,7 +21,7 @@ impl MouseWorldPosition {
 fn get_mouse_position<TCamera>(
 	cameras: Query<(&TCamera::TMouseRayCaster, &GlobalTransform), With<TCamera>>,
 	windows: Query<&Window>,
-) -> Option<Vec3>
+) -> Option<Vec2>
 where
 	TCamera: Component + MouseRayCaster,
 {
@@ -30,7 +29,8 @@ where
 	let window = windows.get_single().ok()?;
 	let ray = camera.get_mouse_ray(transform, window)?;
 	let toi = ray.intersect_plane(Vec3::ZERO, InfinitePlane3d::new(Dir3::Z))?;
-	Some(ray.origin + ray.direction * toi)
+	let mouse_position = ray.origin + ray.direction * toi;
+	Some(mouse_position.xy())
 }
 
 #[cfg(test)]
@@ -96,7 +96,7 @@ mod tests {
 			.run_system_once(MouseWorldPosition::update_using::<_CameraLabel>)?;
 
 		assert_eq!(
-			&MouseWorldPosition(Some(Vec3::ZERO)),
+			&MouseWorldPosition(Some(Vec2::ZERO)),
 			app.world().resource::<MouseWorldPosition>(),
 		);
 		Ok(())
@@ -135,7 +135,7 @@ mod tests {
 	fn set_mouse_position_none_when_ray_none() -> Result<(), RunSystemError> {
 		let mut app = setup("");
 		app.world_mut()
-			.insert_resource(MouseWorldPosition(Some(Vec3::ZERO)));
+			.insert_resource(MouseWorldPosition(Some(Vec2::ZERO)));
 		app.world_mut().spawn((
 			_CameraLabel,
 			_Camera {
@@ -159,7 +159,7 @@ mod tests {
 	fn set_mouse_position_none_when_ray_not_intersecting_ground() -> Result<(), RunSystemError> {
 		let mut app = setup("");
 		app.world_mut()
-			.insert_resource(MouseWorldPosition(Some(Vec3::ZERO)));
+			.insert_resource(MouseWorldPosition(Some(Vec2::ZERO)));
 		app.world_mut().spawn((
 			_CameraLabel,
 			_Camera {
@@ -186,7 +186,7 @@ mod tests {
 	fn set_mouse_position_when_ray_intersecting_ground() -> Result<(), RunSystemError> {
 		let mut app = setup("");
 		app.world_mut()
-			.insert_resource(MouseWorldPosition(Some(Vec3::ZERO)));
+			.insert_resource(MouseWorldPosition(Some(Vec2::ZERO)));
 		app.world_mut().spawn((
 			_CameraLabel,
 			_Camera {
@@ -203,7 +203,7 @@ mod tests {
 			.run_system_once(MouseWorldPosition::update_using::<_CameraLabel>)?;
 
 		assert_eq!(
-			&MouseWorldPosition(Some(Vec3::new(0., 3., 0.))),
+			&MouseWorldPosition(Some(Vec2::new(0., 3.))),
 			app.world().resource::<MouseWorldPosition>(),
 		);
 		Ok(())

@@ -1,3 +1,4 @@
+pub mod clickable;
 pub mod obstacle;
 pub mod player_camera;
 pub mod tile;
