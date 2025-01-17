@@ -3,7 +3,7 @@ use project_zyheeda_pathfinding::{
 	asset_loader::CustomAssetLoader,
 	assets::{grid::Grid, tile_collider_definition::TileColliderDefinition},
 	components::{
-		clickable::Clickable,
+		clickable::{Clickable, MouseLeft, MouseRight},
 		obstacle::Obstacle,
 		player_camera::PlayerCamera,
 		tile_builder::TileBuilder,
@@ -33,8 +33,9 @@ fn main() -> AppExit {
 		.add_systems(
 			Update,
 			(
-				Clickable::update_using::<TileCollider>,
-				Clickable::toggle::<Obstacle>,
+				Clickable::<MouseLeft>::update_using::<TileCollider>,
+				Clickable::<MouseRight>::update_using::<TileCollider>,
+				Clickable::<MouseRight>::toggle::<Obstacle>,
 				Obstacle::update_color,
 				UseAsset::<ColorMaterial>::insert_system,
 				UseAsset::<Mesh>::insert_system,

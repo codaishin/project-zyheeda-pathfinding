@@ -1,4 +1,7 @@
-use super::{clickable::Clickable, use_asset::UseAsset};
+use super::{
+	clickable::{Clickable, MouseRight},
+	use_asset::UseAsset,
+};
 use crate::assets::tile_collider_definition::TileColliderDefinition;
 use bevy::prelude::*;
 use std::path::Path;
@@ -10,7 +13,7 @@ use std::path::Path;
 	UseAsset<Mesh>(Tile::asset),
 	UseAsset<ColorMaterial>(Tile::asset),
 	UseAsset<TileColliderDefinition>(Tile::asset),
-	Clickable,
+	Clickable<MouseRight>,
 )]
 pub struct Tile;
 
