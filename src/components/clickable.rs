@@ -39,20 +39,24 @@ impl Clickable {
 		}
 	}
 
-	pub fn insert_or_remove<TComponent>(
+	pub fn toggle<TComponent>(
 		mut commands: Commands,
-		entities: Query<(Entity, &Clickable), Changed<Clickable>>,
+		entities: Query<(Entity, &Clickable, Option<&TComponent>), Changed<Clickable>>,
 	) where
 		TComponent: Component + Default,
 	{
-		for (entity, Clickable { clicked }) in &entities {
+		for (entity, Clickable { clicked }, component) in &entities {
+			if !clicked {
+				continue;
+			}
+
 			let Some(mut entity) = commands.get_entity(entity) else {
 				continue;
 			};
 
-			match clicked {
-				true => entity.try_insert(TComponent::default()),
-				false => entity.remove::<TComponent>(),
+			match component {
+				Some(_) => entity.remove::<TComponent>(),
+				None => entity.try_insert(TComponent::default()),
 			};
 		}
 	}
@@ -293,18 +297,17 @@ mod test_update {
 }
 
 #[cfg(test)]
-mod test_insert_or_remove {
-	use std::ops::DerefMut;
-
+mod test_toggle {
 	use super::*;
 	use crate::test_tools::SingleThreaded;
+	use std::ops::DerefMut;
 
 	#[derive(Component, Debug, PartialEq, Default)]
 	struct _Component;
 
 	fn setup() -> App {
 		let mut app = App::new().single_threaded(Update);
-		app.add_systems(Update, Clickable::insert_or_remove::<_Component>);
+		app.add_systems(Update, Clickable::toggle::<_Component>);
 
 		app
 	}
@@ -353,13 +356,62 @@ mod test_insert_or_remove {
 	}
 
 	#[test]
-	fn remove_component_when_not_clicked() {
+	fn do_nothing_when_not_clicked() {
 		let mut app = setup();
 		let entity = app
 			.world_mut()
 			.spawn((Clickable { clicked: false }, _Component))
 			.id();
 
+		app.update();
+
+		assert_eq!(
+			Some(&_Component),
+			app.world().entity(entity).get::<_Component>()
+		);
+	}
+
+	#[test]
+	fn remove_component_when_clicked() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn((Clickable { clicked: true }, _Component))
+			.id();
+
+		app.update();
+
+		assert_eq!(None, app.world().entity(entity).get::<_Component>());
+	}
+
+	#[test]
+	fn remove_component_when_clicked_only_once() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn((Clickable { clicked: true }, _Component))
+			.id();
+
+		app.update();
+		app.world_mut().entity_mut(entity).insert(_Component);
+		app.update();
+
+		assert_eq!(
+			Some(&_Component),
+			app.world().entity(entity).get::<_Component>(),
+		);
+	}
+
+	#[test]
+	fn remove_component_when_clicked_again_after_mut_deref() {
+		let mut app = setup();
+		let entity = app.world_mut().spawn(Clickable { clicked: true }).id();
+
+		app.update();
+		app.world_mut().entity_mut(entity).insert(_Component);
+		let mut clickable = app.world_mut().entity_mut(entity);
+		let mut clickable = clickable.get_mut::<Clickable>().unwrap();
+		clickable.deref_mut();
 		app.update();
 
 		assert_eq!(None, app.world().entity(entity).get::<_Component>());
