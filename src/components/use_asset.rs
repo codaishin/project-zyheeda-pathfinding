@@ -101,13 +101,12 @@ mod tests {
 		let mut app = setup();
 		app.world_mut().spawn(_UseAsset::new(Path::new("my/path")));
 
-		app.world_mut().resource_mut::<_AssetServer>().mock =
-			new_mock!(Mock_AssetServer, |mock: &mut Mock_AssetServer| {
-				mock.expect_load_asset::<_Asset>()
-					.times(1)
-					.with(eq(Path::new("my/path")))
-					.return_const(new_handle!(_Asset));
-			});
+		app.world_mut().resource_mut::<_AssetServer>().mock = new_mock!(Mock_AssetServer, |mock| {
+			mock.expect_load_asset::<_Asset>()
+				.times(1)
+				.with(eq(Path::new("my/path")))
+				.return_const(new_handle!(_Asset));
+		});
 
 		app.update();
 	}
@@ -120,11 +119,10 @@ mod tests {
 			.world_mut()
 			.spawn(_UseAsset::new(Path::new("my/path")))
 			.id();
-		app.world_mut().resource_mut::<_AssetServer>().mock =
-			new_mock!(Mock_AssetServer, |mock: &mut Mock_AssetServer| {
-				mock.expect_load_asset::<_Asset>()
-					.return_const(handle.clone());
-			});
+		app.world_mut().resource_mut::<_AssetServer>().mock = new_mock!(Mock_AssetServer, |mock| {
+			mock.expect_load_asset::<_Asset>()
+				.return_const(handle.clone());
+		});
 
 		app.update();
 
@@ -139,12 +137,11 @@ mod tests {
 		let mut app = setup();
 		app.world_mut().spawn(_UseAsset::new(Path::new("my/path")));
 
-		app.world_mut().resource_mut::<_AssetServer>().mock =
-			new_mock!(Mock_AssetServer, |mock: &mut Mock_AssetServer| {
-				mock.expect_load_asset::<_Asset>()
-					.times(1)
-					.return_const(new_handle!(_Asset));
-			});
+		app.world_mut().resource_mut::<_AssetServer>().mock = new_mock!(Mock_AssetServer, |mock| {
+			mock.expect_load_asset::<_Asset>()
+				.times(1)
+				.return_const(new_handle!(_Asset));
+		});
 
 		app.update();
 		app.update();

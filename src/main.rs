@@ -9,6 +9,7 @@ use project_zyheeda_pathfinding::{
 		use_asset::UseAsset,
 	},
 	dtos::{grid_layout::GridLayout, tile_color::TileColor, tile_size::TileSize},
+	resources::mouse_world_position::MouseWorldPosition,
 	systems::spawn::Spawn,
 };
 
@@ -17,10 +18,12 @@ fn main() -> AppExit {
 
 	app.add_plugins(DefaultPlugins)
 		.init_asset::<Grid>()
+		.init_resource::<MouseWorldPosition>()
 		.register_asset_loader(CustomAssetLoader::<Grid, GridLayout>::default())
 		.register_asset_loader(CustomAssetLoader::<ColorMaterial, TileColor>::default())
 		.register_asset_loader(CustomAssetLoader::<Mesh, TileSize>::default())
 		.add_systems(Startup, (PlayerCamera::spawn, TileGrid::spawn))
+		.add_systems(Update, MouseWorldPosition::update_using::<PlayerCamera>)
 		.add_systems(
 			Update,
 			(
