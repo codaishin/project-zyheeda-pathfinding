@@ -24,7 +24,7 @@ where
 	TKeyDefinition: GetKey + Sync + Send + 'static,
 	TKeyDefinition::TKey: Copy + Eq + Hash + Send + Sync + 'static,
 {
-	pub fn update_using<TCollider>(
+	pub fn detect_click_on<TCollider>(
 		mut entities: Query<(&mut Self, &TCollider, &Transform)>,
 		colliders: Res<Assets<TCollider::TAsset>>,
 		mouse_world_position: Res<MouseWorldPosition>,
@@ -207,7 +207,7 @@ mod test_update {
 			.id();
 
 		app.world_mut()
-			.run_system_once(Clickable::<_Button>::update_using::<_Collider>)?;
+			.run_system_once(Clickable::<_Button>::detect_click_on::<_Collider>)?;
 
 		assert_eq!(
 			Some(&Clickable::<_Button> {
@@ -227,7 +227,7 @@ mod test_update {
 		let entity = app.world_mut().spawn(_Collider(handle)).id();
 
 		app.world_mut()
-			.run_system_once(Clickable::<_Button>::update_using::<_Collider>)?;
+			.run_system_once(Clickable::<_Button>::detect_click_on::<_Collider>)?;
 
 		assert_eq!(None, app.world().entity(entity).get::<Clickable<_Button>>());
 		Ok(())
@@ -254,7 +254,7 @@ mod test_update {
 			.id();
 
 		app.world_mut()
-			.run_system_once(Clickable::<_Button>::update_using::<_Collider>)?;
+			.run_system_once(Clickable::<_Button>::detect_click_on::<_Collider>)?;
 
 		assert_eq!(
 			Some(&Clickable::<_Button> {
@@ -288,7 +288,7 @@ mod test_update {
 		));
 
 		app.world_mut()
-			.run_system_once(Clickable::<_Button>::update_using::<_Collider>)
+			.run_system_once(Clickable::<_Button>::detect_click_on::<_Collider>)
 	}
 
 	#[test]
@@ -314,7 +314,7 @@ mod test_update {
 		));
 
 		app.world_mut()
-			.run_system_once(Clickable::<_Button>::update_using::<_Collider>)
+			.run_system_once(Clickable::<_Button>::detect_click_on::<_Collider>)
 	}
 
 	#[test]
@@ -338,7 +338,7 @@ mod test_update {
 			.id();
 
 		app.world_mut()
-			.run_system_once(Clickable::<_Button>::update_using::<_Collider>)?;
+			.run_system_once(Clickable::<_Button>::detect_click_on::<_Collider>)?;
 
 		assert_eq!(
 			Some(&Clickable::<_Button> {
@@ -371,7 +371,7 @@ mod test_update {
 			.id();
 
 		app.world_mut()
-			.run_system_once(Clickable::<_Button>::update_using::<_Collider>)?;
+			.run_system_once(Clickable::<_Button>::detect_click_on::<_Collider>)?;
 
 		assert_eq!(
 			Some(&Clickable::<_Button> {
@@ -418,7 +418,7 @@ mod test_update {
 		app.add_systems(
 			Update,
 			(
-				Clickable::<_Button>::update_using::<_Collider>,
+				Clickable::<_Button>::detect_click_on::<_Collider>,
 				_Changed::detect,
 			)
 				.chain(),

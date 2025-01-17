@@ -24,7 +24,7 @@ where
 		}
 	}
 
-	pub fn insert_system(
+	pub fn insert(
 		mut commands: Commands,
 		asset_server: Res<TAssetServer>,
 		entities: Query<(Entity, &Self), Changed<Self>>,
@@ -102,7 +102,7 @@ mod tests {
 	fn setup() -> App {
 		let mut app = App::new().single_threaded(Update);
 		app.init_resource::<_AssetServer>();
-		app.add_systems(Update, _UseAsset::insert_system);
+		app.add_systems(Update, _UseAsset::insert);
 
 		app
 	}
