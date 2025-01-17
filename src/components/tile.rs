@@ -1,5 +1,6 @@
 use super::{
-	clickable::{Clickable, MouseRight},
+	clickable::{Clickable, MouseLeft, MouseRight},
+	tile_type::TileType,
 	use_asset::UseAsset,
 };
 use crate::assets::tile_collider_definition::TileColliderDefinition;
@@ -11,8 +12,9 @@ use std::path::Path;
 	Transform,
 	Visibility,
 	UseAsset<Mesh>(Tile::asset),
-	UseAsset<ColorMaterial>(Tile::asset),
 	UseAsset<TileColliderDefinition>(Tile::asset),
+	TileType,
+	Clickable<MouseLeft>,
 	Clickable<MouseRight>,
 )]
 pub struct Tile;

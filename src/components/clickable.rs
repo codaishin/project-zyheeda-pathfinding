@@ -56,24 +56,22 @@ where
 	}
 
 	pub fn toggle<TComponent>(
-		mut commands: Commands,
-		entities: Query<(Entity, &Self, Option<&TComponent>), Changed<Self>>,
-	) where
-		TComponent: Component + Default,
+		toggle_state: TComponent,
+	) -> impl Fn(Query<(&Self, &mut TComponent), Changed<Self>>)
+	where
+		TComponent: Component + Default + PartialEq + Copy,
 	{
-		for (entity, Self { clicked, .. }, component) in &entities {
-			if !clicked {
-				continue;
+		move |mut entities| {
+			for (Self { clicked, .. }, mut component) in &mut entities {
+				if !clicked {
+					continue;
+				}
+
+				*component = match *component == toggle_state {
+					true => TComponent::default(),
+					false => toggle_state,
+				}
 			}
-
-			let Some(mut entity) = commands.get_entity(entity) else {
-				continue;
-			};
-
-			match component {
-				Some(_) => entity.remove::<TComponent>(),
-				None => entity.try_insert(TComponent::default()),
-			};
 		}
 	}
 }
@@ -453,73 +451,95 @@ mod test_toggle {
 		}
 	}
 
-	#[derive(Component, Debug, PartialEq, Default)]
-	struct _Component;
+	#[derive(Component, Debug, PartialEq, Default, Clone, Copy)]
+	enum _Component {
+		#[default]
+		ToggleOff,
+		ToggleOn,
+	}
 
 	fn setup() -> App {
 		let mut app = App::new().single_threaded(Update);
-		app.add_systems(Update, Clickable::<_Button>::toggle::<_Component>);
+		app.add_systems(Update, Clickable::<_Button>::toggle(_Component::ToggleOn));
 
 		app
 	}
 
 	#[test]
-	fn insert_component_when_clicked() {
+	fn toggle_on_when_clicked() {
 		let mut app = setup();
 		let entity = app
 			.world_mut()
-			.spawn(Clickable::<_Button> {
-				clicked: true,
-				..default()
-			})
+			.spawn((
+				Clickable::<_Button> {
+					clicked: true,
+					..default()
+				},
+				_Component::ToggleOff,
+			))
 			.id();
 
 		app.update();
 
 		assert_eq!(
-			Some(&_Component),
+			Some(&_Component::ToggleOn),
 			app.world().entity(entity).get::<_Component>(),
 		);
 	}
 
 	#[test]
-	fn insert_component_when_clicked_only_once() {
+	fn toggle_on_when_clicked_only_once() {
 		let mut app = setup();
 		let entity = app
 			.world_mut()
-			.spawn(Clickable::<_Button> {
-				clicked: true,
-				..default()
-			})
+			.spawn((
+				Clickable::<_Button> {
+					clicked: true,
+					..default()
+				},
+				_Component::ToggleOff,
+			))
 			.id();
 
 		app.update();
-		app.world_mut().entity_mut(entity).remove::<_Component>();
-		app.update();
-
-		assert_eq!(None, app.world().entity(entity).get::<_Component>());
-	}
-
-	#[test]
-	fn insert_component_when_clicked_again_after_mut_deref() {
-		let mut app = setup();
-		let entity = app
-			.world_mut()
-			.spawn(Clickable::<_Button> {
-				clicked: true,
-				..default()
-			})
-			.id();
-
-		app.update();
-		app.world_mut().entity_mut(entity).remove::<_Component>();
-		let mut clickable = app.world_mut().entity_mut(entity);
-		let mut clickable = clickable.get_mut::<Clickable<_Button>>().unwrap();
-		clickable.deref_mut();
+		app.world_mut()
+			.entity_mut(entity)
+			.insert(_Component::ToggleOff);
 		app.update();
 
 		assert_eq!(
-			Some(&_Component),
+			Some(&_Component::ToggleOff),
+			app.world().entity(entity).get::<_Component>()
+		);
+	}
+
+	#[test]
+	fn toggle_on_when_clicked_again_after_mut_deref() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn((
+				Clickable::<_Button> {
+					clicked: true,
+					..default()
+				},
+				_Component::ToggleOff,
+			))
+			.id();
+
+		app.update();
+		app.world_mut()
+			.entity_mut(entity)
+			.insert(_Component::ToggleOff);
+		app.world_mut()
+			.entity_mut(entity)
+			.get_mut::<Clickable<_Button>>()
+			.unwrap()
+			.deref_mut();
+		app.update();
+
+		assert_eq!(
+			Some(&_Component::ToggleOn),
 			app.world().entity(entity).get::<_Component>()
 		);
 	}
@@ -534,20 +554,20 @@ mod test_toggle {
 					clicked: false,
 					..default()
 				},
-				_Component,
+				_Component::ToggleOff,
 			))
 			.id();
 
 		app.update();
 
 		assert_eq!(
-			Some(&_Component),
+			Some(&_Component::ToggleOff),
 			app.world().entity(entity).get::<_Component>()
 		);
 	}
 
 	#[test]
-	fn remove_component_when_clicked() {
+	fn toggle_off_when_clicked() {
 		let mut app = setup();
 		let entity = app
 			.world_mut()
@@ -556,57 +576,15 @@ mod test_toggle {
 					clicked: true,
 					..default()
 				},
-				_Component,
+				_Component::ToggleOn,
 			))
 			.id();
 
-		app.update();
-
-		assert_eq!(None, app.world().entity(entity).get::<_Component>());
-	}
-
-	#[test]
-	fn remove_component_when_clicked_only_once() {
-		let mut app = setup();
-		let entity = app
-			.world_mut()
-			.spawn((
-				Clickable::<_Button> {
-					clicked: true,
-					..default()
-				},
-				_Component,
-			))
-			.id();
-
-		app.update();
-		app.world_mut().entity_mut(entity).insert(_Component);
 		app.update();
 
 		assert_eq!(
-			Some(&_Component),
-			app.world().entity(entity).get::<_Component>(),
+			Some(&_Component::ToggleOff),
+			app.world().entity(entity).get::<_Component>()
 		);
-	}
-
-	#[test]
-	fn remove_component_when_clicked_again_after_mut_deref() {
-		let mut app = setup();
-		let entity = app
-			.world_mut()
-			.spawn(Clickable::<_Button> {
-				clicked: true,
-				..default()
-			})
-			.id();
-
-		app.update();
-		app.world_mut().entity_mut(entity).insert(_Component);
-		let mut clickable = app.world_mut().entity_mut(entity);
-		let mut clickable = clickable.get_mut::<Clickable<_Button>>().unwrap();
-		clickable.deref_mut();
-		app.update();
-
-		assert_eq!(None, app.world().entity(entity).get::<_Component>());
 	}
 }

@@ -4,11 +4,11 @@ use project_zyheeda_pathfinding::{
 	assets::{grid::Grid, tile_collider_definition::TileColliderDefinition},
 	components::{
 		clickable::{Clickable, MouseLeft, MouseRight},
-		obstacle::Obstacle,
 		player_camera::PlayerCamera,
 		tile_builder::TileBuilder,
 		tile_collider::TileCollider,
 		tile_grid::TileGrid,
+		tile_type::TileType,
 		use_asset::UseAsset,
 	},
 	dtos::{grid_layout::GridLayout, tile_color::TileColor, tile_size::TileSize},
@@ -36,7 +36,7 @@ fn main() -> AppExit {
 				UseAsset::<Mesh>::insert,
 				UseAsset::<Grid>::insert,
 				UseAsset::<TileColliderDefinition>::insert,
-				UseAsset::<ColorMaterial>::insert.after(Obstacle::update_color),
+				UseAsset::<ColorMaterial>::insert.after(TileType::update_color),
 			),
 		)
 		.add_systems(
@@ -49,8 +49,9 @@ fn main() -> AppExit {
 		.add_systems(
 			Update,
 			(
-				Clickable::<MouseRight>::toggle::<Obstacle>,
-				Obstacle::update_color,
+				Clickable::<MouseRight>::toggle(TileType::Obstacle),
+				Clickable::<MouseLeft>::toggle(TileType::Start),
+				TileType::update_color,
 			)
 				.chain(),
 		);
