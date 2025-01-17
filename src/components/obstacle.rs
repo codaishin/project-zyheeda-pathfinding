@@ -7,15 +7,15 @@ use std::path::Path;
 #[require(
 	Transform,
 	Visibility,
-	UseAsset<Mesh>(Tile::mesh),
-	UseAsset<ColorMaterial>(Obstacle::color)
+	UseAsset<Mesh>(Tile::asset),
+	UseAsset<ColorMaterial>(Obstacle::asset)
 )]
 pub struct Obstacle;
 
 impl Obstacle {
 	const ASSET_PATH: &str = "obstacle.json";
 
-	fn color() -> UseAsset<ColorMaterial> {
+	fn asset() -> UseAsset<ColorMaterial> {
 		UseAsset::new(Path::new(Self::ASSET_PATH))
 	}
 }

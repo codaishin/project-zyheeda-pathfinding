@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use project_zyheeda_pathfinding::{
 	asset_loader::CustomAssetLoader,
-	assets::grid::Grid,
+	assets::{grid::Grid, tile_collider_definition::TileColliderDefinition},
 	components::{
 		player_camera::PlayerCamera,
 		tile_builder::TileBuilder,
@@ -18,8 +18,10 @@ fn main() -> AppExit {
 
 	app.add_plugins(DefaultPlugins)
 		.init_asset::<Grid>()
+		.init_asset::<TileColliderDefinition>()
 		.init_resource::<MouseWorldPosition>()
 		.register_asset_loader(CustomAssetLoader::<Grid, GridLayout>::default())
+		.register_asset_loader(CustomAssetLoader::<TileColliderDefinition, TileSize>::default())
 		.register_asset_loader(CustomAssetLoader::<ColorMaterial, TileColor>::default())
 		.register_asset_loader(CustomAssetLoader::<Mesh, TileSize>::default())
 		.add_systems(Startup, (PlayerCamera::spawn, TileGrid::spawn))
@@ -30,6 +32,7 @@ fn main() -> AppExit {
 				UseAsset::<ColorMaterial>::insert_system,
 				UseAsset::<Mesh>::insert_system,
 				UseAsset::<Grid>::insert_system,
+				UseAsset::<TileColliderDefinition>::insert_system,
 			),
 		)
 		.add_systems(Update, TileBuilder::<Grid>::spawn_tiles);
