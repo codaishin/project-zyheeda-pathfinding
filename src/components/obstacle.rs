@@ -3,7 +3,7 @@ use crate::components::use_asset::UseAsset;
 use bevy::prelude::*;
 use std::path::Path;
 
-#[derive(Component)]
+#[derive(Component, Debug, PartialEq, Default)]
 #[require(
 	Transform,
 	Visibility,

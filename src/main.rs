@@ -4,6 +4,7 @@ use project_zyheeda_pathfinding::{
 	assets::{grid::Grid, tile_collider_definition::TileColliderDefinition},
 	components::{
 		clickable::Clickable,
+		obstacle::Obstacle,
 		player_camera::PlayerCamera,
 		tile_builder::TileBuilder,
 		tile_collider::TileCollider,
@@ -38,7 +39,13 @@ fn main() -> AppExit {
 			),
 		)
 		.add_systems(Update, TileBuilder::<Grid>::spawn_tiles)
-		.add_systems(Update, Clickable::update_using::<TileCollider>);
+		.add_systems(
+			Update,
+			(
+				Clickable::update_using::<TileCollider>,
+				Clickable::insert_or_remove::<Obstacle>,
+			),
+		);
 
 	app.run()
 }
