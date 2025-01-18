@@ -3,12 +3,12 @@ use project_zyheeda_pathfinding::{
 	asset_loader::CustomAssetLoader,
 	assets::{grid::Grid, tile_collider_definition::TileColliderDefinition},
 	components::{
-		clickable::Clickable,
-		obstacle::Obstacle,
+		clickable::{Clickable, MouseLeft, MouseRight},
 		player_camera::PlayerCamera,
 		tile_builder::TileBuilder,
 		tile_collider::TileCollider,
 		tile_grid::TileGrid,
+		tile_type::TileType,
 		use_asset::UseAsset,
 	},
 	dtos::{grid_layout::GridLayout, tile_color::TileColor, tile_size::TileSize},
@@ -33,13 +33,25 @@ fn main() -> AppExit {
 		.add_systems(
 			Update,
 			(
-				Clickable::update_using::<TileCollider>,
-				Clickable::toggle::<Obstacle>,
-				Obstacle::update_color,
-				UseAsset::<ColorMaterial>::insert_system,
-				UseAsset::<Mesh>::insert_system,
-				UseAsset::<Grid>::insert_system,
-				UseAsset::<TileColliderDefinition>::insert_system,
+				UseAsset::<Mesh>::insert,
+				UseAsset::<Grid>::insert,
+				UseAsset::<TileColliderDefinition>::insert,
+				UseAsset::<ColorMaterial>::insert.after(TileType::update_color),
+			),
+		)
+		.add_systems(
+			Update,
+			(
+				Clickable::<MouseLeft>::detect_click_on::<TileCollider>,
+				Clickable::<MouseRight>::detect_click_on::<TileCollider>,
+			),
+		)
+		.add_systems(
+			Update,
+			(
+				Clickable::<MouseRight>::toggle(TileType::Obstacle),
+				Clickable::<MouseLeft>::switch_on_single(TileType::Start),
+				TileType::update_color,
 			)
 				.chain(),
 		);
