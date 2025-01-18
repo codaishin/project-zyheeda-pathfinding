@@ -50,7 +50,7 @@ fn main() -> AppExit {
 			Update,
 			(
 				Clickable::<MouseRight>::toggle(TileType::Obstacle),
-				Clickable::<MouseLeft>::toggle(TileType::Start),
+				Clickable::<MouseLeft>::switch_on_single(TileType::Start),
 				TileType::update_color,
 			)
 				.chain(),

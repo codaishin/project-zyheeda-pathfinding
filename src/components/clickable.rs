@@ -78,20 +78,51 @@ where
 	}
 
 	pub fn toggle<TComponent>(
-		toggle_state: TComponent,
+		toggle_on: TComponent,
 	) -> impl Fn(Query<(&Self, &mut TComponent), Changed<Self>>)
 	where
 		TComponent: Component + Default + PartialEq + Copy,
 	{
-		move |mut entities| {
-			for (Self { clicked, .. }, mut component) in &mut entities {
+		move |mut toggles| {
+			for (Self { clicked, .. }, mut toggle) in &mut toggles {
 				if !clicked {
 					continue;
 				}
 
-				*component = match *component == toggle_state {
+				*toggle = match *toggle == toggle_on {
 					true => TComponent::default(),
-					false => toggle_state,
+					false => toggle_on,
+				}
+			}
+		}
+	}
+
+	fn just_clicked(clickable: &Ref<Self>) -> bool {
+		clickable.is_changed() && clickable.clicked
+	}
+
+	fn only_others_clicked(clickable: &Ref<Self>, any_clicked: bool) -> bool {
+		any_clicked && !clickable.clicked
+	}
+
+	pub fn switch_on_single<TComponent>(
+		switch_on_state: TComponent,
+	) -> impl Fn(Query<(Ref<Self>, &mut TComponent)>)
+	where
+		TComponent: Component + Default + PartialEq + Copy,
+	{
+		let switched_on = move |switch: &TComponent| switch == &switch_on_state;
+
+		move |mut switches| {
+			let any_clicked = switches.iter().any(|(clickable, _)| clickable.clicked);
+
+			for (clickable, mut switch) in &mut switches {
+				if Self::just_clicked(&clickable) {
+					*switch = switch_on_state
+				}
+
+				if Self::only_others_clicked(&clickable, any_clicked) && switched_on(&switch) {
+					*switch = TComponent::default()
 				}
 			}
 		}
@@ -644,6 +675,236 @@ mod test_toggle {
 		assert_eq!(
 			Some(&_Component::ToggleOff),
 			app.world().entity(entity).get::<_Component>()
+		);
+	}
+}
+
+#[cfg(test)]
+mod test_switch_on_single {
+	use super::*;
+	use crate::test_tools::SingleThreaded;
+	use std::ops::DerefMut;
+
+	#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+	struct _DeviceKey;
+
+	#[derive(Debug, PartialEq, Default)]
+	struct _Button;
+
+	impl GetKey for _Button {
+		type TKey = _DeviceKey;
+
+		fn get_key() -> Self::TKey {
+			_DeviceKey
+		}
+	}
+
+	#[derive(Component, Debug, PartialEq, Default, Clone, Copy)]
+	enum _Component {
+		#[default]
+		SwitchedOff,
+		SwitchedOn,
+		OtherState,
+	}
+
+	fn setup() -> App {
+		let mut app = App::new().single_threaded(Update);
+		app.add_systems(
+			Update,
+			Clickable::<_Button>::switch_on_single(_Component::SwitchedOn),
+		);
+
+		app
+	}
+
+	#[test]
+	fn switch_component_on() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn((
+				_Component::SwitchedOff,
+				Clickable::<_Button> {
+					clicked: true,
+					..default()
+				},
+			))
+			.id();
+
+		app.update();
+
+		assert_eq!(
+			Some(&_Component::SwitchedOn),
+			app.world().entity(entity).get::<_Component>(),
+		);
+	}
+
+	#[test]
+	fn switch_component_off_if_new_switched_on() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn((
+				_Component::SwitchedOn,
+				Clickable::<_Button> {
+					clicked: false,
+					..default()
+				},
+			))
+			.id();
+		app.world_mut().spawn((
+			_Component::SwitchedOff,
+			Clickable::<_Button> {
+				clicked: true,
+				..default()
+			},
+		));
+
+		app.update();
+
+		assert_eq!(
+			Some(&_Component::SwitchedOff),
+			app.world().entity(entity).get::<_Component>(),
+		);
+	}
+
+	#[test]
+	fn do_not_switch_component_off_if_not_on_and_new_switched_on() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn((
+				_Component::OtherState,
+				Clickable::<_Button> {
+					clicked: false,
+					..default()
+				},
+			))
+			.id();
+		app.world_mut().spawn((
+			_Component::SwitchedOff,
+			Clickable::<_Button> {
+				clicked: true,
+				..default()
+			},
+		));
+
+		app.update();
+
+		assert_eq!(
+			Some(&_Component::OtherState),
+			app.world().entity(entity).get::<_Component>(),
+		);
+	}
+
+	#[test]
+	fn do_not_switch_component_off_if_no_other_switched_on() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn((
+				_Component::SwitchedOn,
+				Clickable::<_Button> {
+					clicked: false,
+					..default()
+				},
+			))
+			.id();
+
+		app.update();
+
+		assert_eq!(
+			Some(&_Component::SwitchedOn),
+			app.world().entity(entity).get::<_Component>(),
+		);
+	}
+
+	#[test]
+	fn switch_component_on_only_once() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn((
+				_Component::SwitchedOff,
+				Clickable::<_Button> {
+					clicked: true,
+					..default()
+				},
+			))
+			.id();
+
+		app.update();
+		app.world_mut()
+			.entity_mut(entity)
+			.insert(_Component::SwitchedOff);
+		app.update();
+
+		assert_eq!(
+			Some(&_Component::SwitchedOff),
+			app.world().entity(entity).get::<_Component>(),
+		);
+	}
+
+	#[test]
+	fn switch_component_on_again_after_mut_deref() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn((
+				_Component::SwitchedOff,
+				Clickable::<_Button> {
+					clicked: true,
+					..default()
+				},
+			))
+			.id();
+
+		app.update();
+		app.world_mut()
+			.entity_mut(entity)
+			.get_mut::<Clickable<_Button>>()
+			.unwrap()
+			.deref_mut();
+		app.world_mut()
+			.entity_mut(entity)
+			.insert(_Component::SwitchedOff);
+		app.update();
+
+		assert_eq!(
+			Some(&_Component::SwitchedOn),
+			app.world().entity(entity).get::<_Component>(),
+		);
+	}
+
+	#[test]
+	fn switch_component_off_if_new_switched_on_in_later_frame() {
+		let mut app = setup();
+		let entity = app
+			.world_mut()
+			.spawn((
+				_Component::SwitchedOn,
+				Clickable::<_Button> {
+					clicked: false,
+					..default()
+				},
+			))
+			.id();
+
+		app.update();
+
+		app.world_mut().spawn((
+			_Component::SwitchedOff,
+			Clickable::<_Button> {
+				clicked: true,
+				..default()
+			},
+		));
+
+		app.update();
+
+		assert_eq!(
+			Some(&_Component::SwitchedOff),
+			app.world().entity(entity).get::<_Component>(),
 		);
 	}
 }
