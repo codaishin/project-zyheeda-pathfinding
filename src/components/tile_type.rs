@@ -9,6 +9,7 @@ pub enum TileType {
 	Walkable,
 	Obstacle,
 	Start,
+	End,
 }
 
 impl From<TileType> for UseAsset<ColorMaterial> {
@@ -17,6 +18,7 @@ impl From<TileType> for UseAsset<ColorMaterial> {
 			TileType::Walkable => Tile::asset(),
 			TileType::Obstacle => UseAsset::new(Path::new("obstacle.json")),
 			TileType::Start => UseAsset::new(Path::new("start.json")),
+			TileType::End => UseAsset::new(Path::new("end.json")),
 		}
 	}
 }
