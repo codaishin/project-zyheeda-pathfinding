@@ -49,6 +49,10 @@ impl SetValue for TileType {
 	type TValue = TileTypeValue;
 
 	fn set_value(&mut self, value: Self::TValue) {
+		if let TileTypeValue::Start | TileTypeValue::End = self.value {
+			return;
+		}
+
 		self.value = value;
 	}
 }
