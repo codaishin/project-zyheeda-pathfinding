@@ -1,4 +1,7 @@
-use crate::{components::tile_type::TileType, traits::get_key::GetKey};
+use crate::{
+	components::tile_type::{TileType, TileTypeValue},
+	traits::get_key::GetKey,
+};
 use bevy::prelude::*;
 use std::hash::Hash;
 
@@ -27,8 +30,12 @@ impl PathPlacement {
 		}
 
 		match current.get() {
-			PathPlacement::Start if last_placed.is(TileType::Start) => next.set(PathPlacement::End),
-			PathPlacement::End if last_placed.is(TileType::End) => next.set(PathPlacement::Start),
+			PathPlacement::Start if last_placed.is(TileTypeValue::Start) => {
+				next.set(PathPlacement::End)
+			}
+			PathPlacement::End if last_placed.is(TileTypeValue::End) => {
+				next.set(PathPlacement::Start)
+			}
 			_ => {}
 		};
 	}
@@ -38,14 +45,14 @@ impl PathPlacement {
 pub struct LastPlaced(Option<TileType>);
 
 impl LastPlaced {
-	fn is(&self, tile_type: TileType) -> bool {
-		self.0.map(|t| t == tile_type).unwrap_or(false)
+	fn is(&self, value: TileTypeValue) -> bool {
+		self.0.map(|t| *t == value).unwrap_or(false)
 	}
 
 	fn update(&mut self, changed_tiles: Query<&TileType, Changed<TileType>>) {
 		let last_placed = changed_tiles
 			.iter()
-			.find(|t| t == &&TileType::Start || t == &&TileType::End);
+			.find(|t| ***t == TileTypeValue::Start || ***t == TileTypeValue::End);
 
 		let Some(last_placed_tile) = last_placed else {
 			return;
@@ -120,7 +127,8 @@ mod tests {
 	fn toggle_to_place_end_on_released() {
 		let mut app = setup(PathPlacement::Start);
 
-		app.world_mut().spawn(TileType::Start);
+		app.world_mut()
+			.spawn(TileType::from_value(TileTypeValue::Start));
 		app.release(_Key);
 		app.update();
 		app.update();
@@ -148,7 +156,8 @@ mod tests {
 	fn toggle_to_place_start_on_released_when_one_end_tile_present() {
 		let mut app = setup(PathPlacement::End);
 
-		app.world_mut().spawn(TileType::End);
+		app.world_mut()
+			.spawn(TileType::from_value(TileTypeValue::End));
 		app.release(_Key);
 		app.update();
 		app.update();
@@ -163,7 +172,8 @@ mod tests {
 	fn do_not_toggle_to_place_end_on_released_when_only_end_present() {
 		let mut app = setup(PathPlacement::Start);
 
-		app.world_mut().spawn(TileType::End);
+		app.world_mut()
+			.spawn(TileType::from_value(TileTypeValue::End));
 		app.release(_Key);
 		app.update();
 		app.update();
@@ -183,9 +193,9 @@ mod tests {
 			app.world_mut().spawn(TileType::default()).id(),
 		];
 
-		app.set_tile(start, TileType::Start);
+		app.set_tile(start, TileType::from_value(TileTypeValue::Start));
 		app.update();
-		app.set_tile(end, TileType::End);
+		app.set_tile(end, TileType::from_value(TileTypeValue::End));
 		app.release(_Key);
 		app.update();
 		app.update();
@@ -205,9 +215,9 @@ mod tests {
 			app.world_mut().spawn(TileType::default()).id(),
 		];
 
-		app.set_tile(start, TileType::Start);
+		app.set_tile(start, TileType::from_value(TileTypeValue::Start));
 		app.update();
-		app.set_tile(obstacle, TileType::Obstacle);
+		app.set_tile(obstacle, TileType::from_value(TileTypeValue::Obstacle));
 		app.release(_Key);
 		app.update();
 		app.update();
@@ -222,7 +232,8 @@ mod tests {
 	fn do_not_toggle_to_place_start_on_released_when_only_start_present() {
 		let mut app = setup(PathPlacement::End);
 
-		app.world_mut().spawn(TileType::Start);
+		app.world_mut()
+			.spawn(TileType::from_value(TileTypeValue::Start));
 		app.release(_Key);
 		app.update();
 		app.update();
@@ -243,9 +254,9 @@ mod tests {
 		];
 
 		app.update();
-		app.set_tile(end, TileType::End);
+		app.set_tile(end, TileType::from_value(TileTypeValue::End));
 		app.update();
-		app.set_tile(start, TileType::Start);
+		app.set_tile(start, TileType::from_value(TileTypeValue::Start));
 		app.release(_Key);
 		app.update();
 		app.update();
@@ -265,9 +276,9 @@ mod tests {
 			app.world_mut().spawn(TileType::default()).id(),
 		];
 
-		app.set_tile(end, TileType::End);
+		app.set_tile(end, TileType::from_value(TileTypeValue::End));
 		app.update();
-		app.set_tile(obstacle, TileType::Obstacle);
+		app.set_tile(obstacle, TileType::from_value(TileTypeValue::Obstacle));
 		app.release(_Key);
 		app.update();
 		app.update();

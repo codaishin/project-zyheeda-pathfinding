@@ -4,10 +4,11 @@ use crate::{
 		asset_handle::AssetHandle,
 		get_key::GetKey,
 		is_point_hit::{IsPointHit, Relative},
+		set_value::SetValue,
 	},
 };
 use bevy::prelude::*;
-use std::{hash::Hash, marker::PhantomData};
+use std::{hash::Hash, marker::PhantomData, ops::Deref};
 
 #[derive(Component, Debug, PartialEq, Default)]
 pub struct Clickable<TKeyDefinition>
@@ -78,10 +79,12 @@ where
 	}
 
 	pub fn toggle<TComponent>(
-		toggle_on: TComponent,
+		toggle_on: TComponent::TValue,
 	) -> impl Fn(Query<(&Self, &mut TComponent), Changed<Self>>)
 	where
-		TComponent: Component + Default + PartialEq + Copy,
+		TComponent:
+			SetValue + Default + Deref<Target = TComponent::TValue> + Component + PartialEq + Copy,
+		TComponent::TValue: PartialEq + Copy,
 	{
 		move |mut toggles| {
 			for (Self { clicked, .. }, mut toggle) in &mut toggles {
@@ -89,9 +92,9 @@ where
 					continue;
 				}
 
-				*toggle = match *toggle == toggle_on {
-					true => TComponent::default(),
-					false => toggle_on,
+				match **toggle == toggle_on {
+					true => *toggle = TComponent::default(),
+					false => toggle.set_value(toggle_on),
 				}
 			}
 		}
@@ -106,23 +109,24 @@ where
 	}
 
 	pub fn switch_on_single<TComponent>(
-		switch_on_state: TComponent,
+		switch_on_state: TComponent::TValue,
 	) -> impl Fn(Query<(Ref<Self>, &mut TComponent)>)
 	where
-		TComponent: Component + Default + PartialEq + Copy,
+		TComponent: SetValue + Default + Component + Deref<Target = TComponent::TValue>,
+		TComponent::TValue: PartialEq + Copy,
 	{
-		let switched_on = move |switch: &TComponent| switch == &switch_on_state;
+		let switched_on = move |switch: &TComponent| **switch == switch_on_state;
 
 		move |mut switches| {
 			let any_clicked = switches.iter().any(|(clickable, _)| clickable.clicked);
 
 			for (clickable, mut switch) in &mut switches {
 				if Self::just_clicked(&clickable) {
-					*switch = switch_on_state
+					switch.set_value(switch_on_state);
 				}
 
 				if Self::only_others_clicked(&clickable, any_clicked) && switched_on(&switch) {
-					*switch = TComponent::default()
+					*switch = TComponent::default();
 				}
 			}
 		}
@@ -548,9 +552,28 @@ mod test_toggle {
 		ToggleOn,
 	}
 
+	impl SetValue for _Component {
+		type TValue = _Component;
+
+		fn set_value(&mut self, value: Self::TValue) {
+			*self = value
+		}
+	}
+
+	impl Deref for _Component {
+		type Target = _Component;
+
+		fn deref(&self) -> &Self::Target {
+			self
+		}
+	}
+
 	fn setup() -> App {
 		let mut app = App::new().single_threaded(Update);
-		app.add_systems(Update, Clickable::<_Button>::toggle(_Component::ToggleOn));
+		app.add_systems(
+			Update,
+			Clickable::<_Button>::toggle::<_Component>(_Component::ToggleOn),
+		);
 
 		app
 	}
@@ -707,11 +730,27 @@ mod test_switch_on_single {
 		OtherState,
 	}
 
+	impl SetValue for _Component {
+		type TValue = _Component;
+
+		fn set_value(&mut self, value: Self::TValue) {
+			*self = value;
+		}
+	}
+
+	impl Deref for _Component {
+		type Target = _Component;
+
+		fn deref(&self) -> &Self::Target {
+			self
+		}
+	}
+
 	fn setup() -> App {
 		let mut app = App::new().single_threaded(Update);
 		app.add_systems(
 			Update,
-			Clickable::<_Button>::switch_on_single(_Component::SwitchedOn),
+			Clickable::<_Button>::switch_on_single::<_Component>(_Component::SwitchedOn),
 		);
 
 		app

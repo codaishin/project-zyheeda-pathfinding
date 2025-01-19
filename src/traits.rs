@@ -7,4 +7,5 @@ pub mod is_point_hit;
 pub mod load_asset;
 pub mod load_from;
 pub mod parse;
+pub mod set_value;
 pub mod translations;

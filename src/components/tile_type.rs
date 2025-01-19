@@ -1,10 +1,15 @@
 use super::tile::Tile;
-use crate::components::use_asset::UseAsset;
+use crate::{components::use_asset::UseAsset, traits::set_value::SetValue};
 use bevy::prelude::*;
-use std::path::Path;
+use std::{ops::Deref, path::Path};
 
 #[derive(Component, Debug, PartialEq, Default, Clone, Copy)]
-pub enum TileType {
+pub struct TileType {
+	value: TileTypeValue,
+}
+
+#[derive(Debug, PartialEq, Default, Clone, Copy)]
+pub enum TileTypeValue {
 	#[default]
 	Walkable,
 	Obstacle,
@@ -13,17 +18,22 @@ pub enum TileType {
 }
 
 impl From<TileType> for UseAsset<ColorMaterial> {
-	fn from(value: TileType) -> Self {
+	fn from(TileType { value }: TileType) -> Self {
 		match value {
-			TileType::Walkable => Tile::asset(),
-			TileType::Obstacle => UseAsset::new(Path::new("obstacle.json")),
-			TileType::Start => UseAsset::new(Path::new("start.json")),
-			TileType::End => UseAsset::new(Path::new("end.json")),
+			TileTypeValue::Walkable => Tile::asset(),
+			TileTypeValue::Obstacle => UseAsset::new(Path::new("obstacle.json")),
+			TileTypeValue::Start => UseAsset::new(Path::new("start.json")),
+			TileTypeValue::End => UseAsset::new(Path::new("end.json")),
 		}
 	}
 }
 
 impl TileType {
+	#[cfg(test)]
+	pub fn from_value(value: TileTypeValue) -> Self {
+		Self { value }
+	}
+
 	pub fn update_color(mut commands: Commands, obstacles: Query<(Entity, &Self), Changed<Self>>) {
 		for (entity, tile_type) in &obstacles {
 			let Some(mut entity) = commands.get_entity(entity) else {
@@ -32,6 +42,22 @@ impl TileType {
 
 			entity.try_insert(UseAsset::from(*tile_type));
 		}
+	}
+}
+
+impl SetValue for TileType {
+	type TValue = TileTypeValue;
+
+	fn set_value(&mut self, value: Self::TValue) {
+		self.value = value;
+	}
+}
+
+impl Deref for TileType {
+	type Target = TileTypeValue;
+
+	fn deref(&self) -> &Self::Target {
+		&self.value
 	}
 }
 
@@ -51,12 +77,19 @@ mod test {
 	#[test]
 	fn insert_default_color() {
 		let mut app = setup();
-		let entity = app.world_mut().spawn(TileType::Walkable).id();
+		let entity = app
+			.world_mut()
+			.spawn(TileType {
+				value: TileTypeValue::Walkable,
+			})
+			.id();
 
 		app.update();
 
 		assert_eq!(
-			Some(&UseAsset::from(TileType::Walkable)),
+			Some(&UseAsset::from(TileType {
+				value: TileTypeValue::Walkable
+			})),
 			app.world().entity(entity).get::<UseAsset<ColorMaterial>>(),
 		);
 	}
@@ -64,12 +97,19 @@ mod test {
 	#[test]
 	fn insert_obstacle_color() {
 		let mut app = setup();
-		let entity = app.world_mut().spawn(TileType::Obstacle).id();
+		let entity = app
+			.world_mut()
+			.spawn(TileType {
+				value: TileTypeValue::Obstacle,
+			})
+			.id();
 
 		app.update();
 
 		assert_eq!(
-			Some(&UseAsset::from(TileType::Obstacle)),
+			Some(&UseAsset::from(TileType {
+				value: TileTypeValue::Obstacle
+			})),
 			app.world().entity(entity).get::<UseAsset<ColorMaterial>>(),
 		);
 	}
@@ -80,7 +120,9 @@ mod test {
 		let entity = app
 			.world_mut()
 			.spawn((
-				TileType::Obstacle,
+				TileType {
+					value: TileTypeValue::Obstacle,
+				},
 				UseAsset::<ColorMaterial>::new(Path::new("some/other")),
 			))
 			.id();
@@ -103,7 +145,9 @@ mod test {
 		let entity = app
 			.world_mut()
 			.spawn((
-				TileType::Obstacle,
+				TileType {
+					value: TileTypeValue::Obstacle,
+				},
 				UseAsset::<ColorMaterial>::new(Path::new("some/other")),
 			))
 			.id();
@@ -120,7 +164,9 @@ mod test {
 		app.update();
 
 		assert_eq!(
-			Some(&UseAsset::from(TileType::Obstacle)),
+			Some(&UseAsset::from(TileType {
+				value: TileTypeValue::Obstacle
+			})),
 			app.world().entity(entity).get::<UseAsset<ColorMaterial>>(),
 		);
 	}
