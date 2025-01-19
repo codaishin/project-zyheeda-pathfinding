@@ -8,7 +8,7 @@ use project_zyheeda_pathfinding::{
 		tile_builder::TileBuilder,
 		tile_collider::TileCollider,
 		tile_grid::TileGrid,
-		tile_type::TileType,
+		tile_type::{TileType, TileTypeValue},
 		use_asset::UseAsset,
 	},
 	dtos::{grid_layout::GridLayout, tile_color::TileColor, tile_size::TileSize},
@@ -51,10 +51,10 @@ fn main() -> AppExit {
 		.add_systems(
 			Update,
 			(
-				Clickable::<MouseRight>::toggle(TileType::Obstacle),
-				Clickable::<MouseLeft>::switch_on_single(TileType::Start)
+				Clickable::<MouseRight>::toggle::<TileType>(TileTypeValue::Obstacle),
+				Clickable::<MouseLeft>::switch_on_single::<TileType>(TileTypeValue::Start)
 					.run_if(in_state(PathPlacement::Start)),
-				Clickable::<MouseLeft>::switch_on_single(TileType::End)
+				Clickable::<MouseLeft>::switch_on_single::<TileType>(TileTypeValue::End)
 					.run_if(in_state(PathPlacement::End)),
 				TileType::update_color,
 				PathPlacement::toggle_with::<MouseLeft>,
