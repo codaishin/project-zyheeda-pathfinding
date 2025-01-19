@@ -13,6 +13,7 @@ use project_zyheeda_pathfinding::{
 	},
 	dtos::{grid_layout::GridLayout, tile_color::TileColor, tile_size::TileSize},
 	resources::mouse_world_position::MouseWorldPosition,
+	states::path_placement::PathPlacement,
 	systems::spawn::Spawn,
 };
 
@@ -20,6 +21,7 @@ fn main() -> AppExit {
 	let mut app = App::new();
 
 	app.add_plugins(DefaultPlugins)
+		.init_state::<PathPlacement>()
 		.init_asset::<Grid>()
 		.init_asset::<TileColliderDefinition>()
 		.init_resource::<MouseWorldPosition>()
@@ -50,8 +52,12 @@ fn main() -> AppExit {
 			Update,
 			(
 				Clickable::<MouseRight>::toggle(TileType::Obstacle),
-				Clickable::<MouseLeft>::switch_on_single(TileType::Start),
+				Clickable::<MouseLeft>::switch_on_single(TileType::Start)
+					.run_if(in_state(PathPlacement::Start)),
+				Clickable::<MouseLeft>::switch_on_single(TileType::End)
+					.run_if(in_state(PathPlacement::End)),
 				TileType::update_color,
+				PathPlacement::toggle_with::<MouseLeft>,
 			)
 				.chain(),
 		);
