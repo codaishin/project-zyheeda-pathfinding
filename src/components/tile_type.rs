@@ -21,9 +21,9 @@ impl From<TileType> for UseAsset<ColorMaterial> {
 	fn from(TileType { value }: TileType) -> Self {
 		match value {
 			TileTypeValue::Walkable => Tile::asset(),
-			TileTypeValue::Obstacle => UseAsset::new(Path::new("obstacle.json")),
-			TileTypeValue::Start => UseAsset::new(Path::new("start.json")),
-			TileTypeValue::End => UseAsset::new(Path::new("end.json")),
+			TileTypeValue::Obstacle => UseAsset::new(Path::new("tile_types/obstacle.json")),
+			TileTypeValue::Start => UseAsset::new(Path::new("tile_types/start.json")),
+			TileTypeValue::End => UseAsset::new(Path::new("tile_types/end.json")),
 		}
 	}
 }
