@@ -4,8 +4,8 @@ use project_zyheeda_pathfinding::{
 	assets::{grid::Grid, tile_collider_definition::TileColliderDefinition},
 	components::{
 		clickable::{Clickable, MouseLeft, MouseRight},
+		grid_context::GridContext,
 		player_camera::PlayerCamera,
-		tile_builder::TileBuilder,
 		tile_collider::TileCollider,
 		tile_grid::TileGrid,
 		tile_type::{TileType, TileTypeValue},
@@ -31,7 +31,7 @@ fn main() -> AppExit {
 		.register_asset_loader(CustomAssetLoader::<Mesh, TileSize>::default())
 		.add_systems(Startup, (PlayerCamera::spawn, TileGrid::spawn))
 		.add_systems(Update, MouseWorldPosition::update_using::<PlayerCamera>)
-		.add_systems(Update, TileBuilder::<Grid>::spawn_tiles)
+		.add_systems(Update, GridContext::<Grid>::spawn_tiles)
 		.add_systems(
 			Update,
 			(

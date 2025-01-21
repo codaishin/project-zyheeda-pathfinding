@@ -1,6 +1,9 @@
 use crate::{
-	components::tile_builder::TileBuilder,
-	traits::{into_component::IntoComponent, translations::Translations},
+	components::grid_context::GridContext,
+	traits::{
+		computable_grid::{ComputableGrid, ComputeGrid},
+		into_component::IntoComponent,
+	},
 };
 use bevy::prelude::*;
 
@@ -26,14 +29,14 @@ impl Default for Grid {
 }
 
 impl IntoComponent for Handle<Grid> {
-	type TComponent = TileBuilder;
+	type TComponent = GridContext;
 
 	fn into_component(self) -> Self::TComponent {
-		TileBuilder(self)
+		GridContext::from_handle(self)
 	}
 }
 
-impl Translations for Grid {
+impl ComputableGrid for Grid {
 	type TIter<'a> = GridTranslations<'a>;
 
 	fn translations(&self) -> Self::TIter<'_> {
@@ -41,11 +44,14 @@ impl Translations for Grid {
 			grid: self,
 			width: 1,
 			height: 1,
-			offset: -Vec3::new(
-				(self.width + 1) as f32 / 2.,
-				(self.height + 1) as f32 / 2.,
-				0.,
-			),
+			offset: -Vec2::new((self.width + 1) as f32 / 2., (self.height + 1) as f32 / 2.),
+		}
+	}
+
+	fn grid(&self) -> ComputeGrid {
+		ComputeGrid {
+			width: self.width,
+			height: self.height,
 		}
 	}
 }
@@ -53,7 +59,7 @@ impl Translations for Grid {
 pub struct GridTranslations<'a> {
 	width: usize,
 	height: usize,
-	offset: Vec3,
+	offset: Vec2,
 	grid: &'a Grid,
 }
 
@@ -75,14 +81,14 @@ impl GridTranslations<'_> {
 }
 
 impl Iterator for GridTranslations<'_> {
-	type Item = Vec3;
+	type Item = Vec2;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.out_of_bounds() {
 			return None;
 		}
 
-		let translation = Vec3::new(self.width as f32, self.height as f32, 0.);
+		let translation = Vec2::new(self.width as f32, self.height as f32);
 
 		self.iterate();
 
@@ -105,7 +111,7 @@ mod tests {
 
 		let [translation] = assert_count!(1, grid.translations());
 
-		assert_eq!(Vec3::ZERO, translation);
+		assert_eq!(Vec2::ZERO, translation);
 	}
 
 	#[test]
@@ -120,15 +126,15 @@ mod tests {
 
 		assert_eq!(
 			[
-				Vec3::new(-1., -1., 0.),
-				Vec3::new(-1., 0., 0.),
-				Vec3::new(-1., 1., 0.),
-				Vec3::new(0., -1., 0.),
-				Vec3::new(0., 0., 0.),
-				Vec3::new(0., 1., 0.),
-				Vec3::new(1., -1., 0.),
-				Vec3::new(1., 0., 0.),
-				Vec3::new(1., 1., 0.),
+				Vec2::new(-1., -1.),
+				Vec2::new(-1., 0.),
+				Vec2::new(-1., 1.),
+				Vec2::new(0., -1.),
+				Vec2::new(0., 0.),
+				Vec2::new(0., 1.),
+				Vec2::new(1., -1.),
+				Vec2::new(1., 0.),
+				Vec2::new(1., 1.),
 			],
 			translations
 		);
@@ -146,10 +152,10 @@ mod tests {
 
 		assert_eq!(
 			[
-				Vec3::new(-0.5, -0.5, 0.),
-				Vec3::new(-0.5, 0.5, 0.),
-				Vec3::new(0.5, -0.5, 0.),
-				Vec3::new(0.5, 0.5, 0.),
+				Vec2::new(-0.5, -0.5),
+				Vec2::new(-0.5, 0.5),
+				Vec2::new(0.5, -0.5),
+				Vec2::new(0.5, 0.5),
 			],
 			translations
 		);
@@ -167,10 +173,10 @@ mod tests {
 
 		assert_eq!(
 			[
-				Vec3::new(-5., -5., 0.),
-				Vec3::new(-5., 5., 0.),
-				Vec3::new(5., -5., 0.),
-				Vec3::new(5., 5., 0.),
+				Vec2::new(-5., -5.),
+				Vec2::new(-5., 5.),
+				Vec2::new(5., -5.),
+				Vec2::new(5., 5.),
 			],
 			translations
 		);
