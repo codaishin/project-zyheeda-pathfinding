@@ -1,7 +1,7 @@
 use crate::{
 	components::grid_context::GridContext,
 	traits::{
-		computable_grid::{ComputableGrid, ComputeGrid},
+		computable_grid::{ComputableGrid, ComputeGrid, ComputeGridNode, GetComputeGridNode},
 		into_component::IntoComponent,
 	},
 };
@@ -53,6 +53,15 @@ impl ComputableGrid for Grid {
 			width: self.width,
 			height: self.height,
 		}
+	}
+}
+
+impl GetComputeGridNode for Grid {
+	fn compute_grid_node(&self, Vec2 { x, y }: Vec2) -> Option<ComputeGridNode> {
+		Some(ComputeGridNode::new(
+			(x / self.scale) as usize + self.width / 2,
+			(y / self.scale) as usize + self.height / 2,
+		))
 	}
 }
 
@@ -180,5 +189,57 @@ mod tests {
 			],
 			translations
 		);
+	}
+
+	#[test]
+	fn get_compute_node_1_by_1() {
+		let grid = Grid {
+			width: 1,
+			height: 1,
+			..default()
+		};
+
+		let node = grid.compute_grid_node(Vec2::ZERO);
+
+		assert_eq!(Some(ComputeGridNode::ZERO), node);
+	}
+
+	#[test]
+	fn get_compute_node_3_by_3() {
+		let grid = Grid {
+			width: 3,
+			height: 3,
+			..default()
+		};
+
+		let node = grid.compute_grid_node(Vec2::ZERO);
+
+		assert_eq!(Some(ComputeGridNode::new(1, 1)), node);
+	}
+
+	#[test]
+	fn get_compute_node_4_by_4() {
+		let grid = Grid {
+			width: 4,
+			height: 4,
+			..default()
+		};
+
+		let node = grid.compute_grid_node(Vec2::new(1.5, 0.5));
+
+		assert_eq!(Some(ComputeGridNode::new(3, 2)), node);
+	}
+
+	#[test]
+	fn get_compute_node_4_by_3_scaled_by_10() {
+		let grid = Grid {
+			width: 4,
+			height: 3,
+			scale: 10.,
+		};
+
+		let node = grid.compute_grid_node(Vec2::new(15., 10.));
+
+		assert_eq!(Some(ComputeGridNode::new(3, 2)), node);
 	}
 }

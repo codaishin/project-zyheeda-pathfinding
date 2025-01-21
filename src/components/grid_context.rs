@@ -1,15 +1,18 @@
-use super::tile::Tile;
+use super::{
+	tile::Tile,
+	tile_type::{TileType, TileTypeValue},
+};
 use crate::{
 	assets::grid::Grid,
-	traits::computable_grid::{ComputableGrid, ComputeGrid, ComputeGridNode},
+	traits::computable_grid::{ComputableGrid, ComputeGrid, ComputeGridNode, GetComputeGridNode},
 };
 use bevy::prelude::*;
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt::Debug};
 
 #[derive(Component, Debug, PartialEq)]
 pub struct GridContext<TGrid = Grid>
 where
-	TGrid: Asset + ComputableGrid,
+	TGrid: Asset,
 {
 	handle: Handle<TGrid>,
 	grid: ComputeGrid,
@@ -18,7 +21,7 @@ where
 
 impl<TGrid> GridContext<TGrid>
 where
-	TGrid: Asset + ComputableGrid,
+	TGrid: Asset,
 {
 	pub fn from_handle(handle: Handle<TGrid>) -> Self {
 		Self {
@@ -30,24 +33,65 @@ where
 
 	pub fn spawn_tiles(
 		mut commands: Commands,
+		mut contexts: Query<(Entity, &mut Self, Option<&Children>)>,
 		asset_events: EventReader<AssetEvent<TGrid>>,
-		grid_assets: Res<Assets<TGrid>>,
-		mut grids: Query<(Entity, &mut Self, Option<&Children>)>,
+		grids: Res<Assets<TGrid>>,
 		tiles: Query<(), With<Tile>>,
-	) {
+	) where
+		TGrid: ComputableGrid,
+	{
 		if asset_events.is_empty() {
 			return;
 		}
 
 		let changed_assets = changed_assets(asset_events);
 
-		for (entity, mut builder, children) in &mut grids {
-			if !changed_assets.contains(&builder.handle.id()) {
+		for (entity, mut context, children) in &mut contexts {
+			if !changed_assets.contains(&context.handle.id()) {
 				continue;
 			}
 
 			despawn_old_tiles(&mut commands, children, &tiles);
-			spawn_new_tiles(&mut commands, entity, &grid_assets, &mut builder);
+			spawn_new_tiles(&mut commands, &mut context, entity, &grids);
+		}
+	}
+
+	pub fn track_obstacles(
+		mut contexts: Query<&mut Self>,
+		grids: Res<Assets<TGrid>>,
+		tiles: Query<(&Transform, &TileType, &Parent), Changed<TileType>>,
+	) where
+		TGrid: GetComputeGridNode,
+	{
+		for (transform, tile_type, parent) in &tiles {
+			if **tile_type != TileTypeValue::Obstacle {
+				continue;
+			}
+			let Ok(mut context) = contexts.get_mut(parent.get()) else {
+				continue;
+			};
+			let Some(grid) = grids.get(&context.handle) else {
+				continue;
+			};
+			let Some(node) = grid.compute_grid_node(transform.translation.xy()) else {
+				continue;
+			};
+
+			context.obstacles.insert(node);
+		}
+	}
+}
+
+#[cfg(test)]
+impl<TGrid> Default for GridContext<TGrid>
+where
+	TGrid: Asset,
+{
+	fn default() -> Self {
+		Self {
+			handle: Default::default(),
+			grid: Default::default(),
+			obstacles: Default::default(),
 		}
 	}
 }
@@ -82,21 +126,21 @@ fn despawn_old_tiles(
 
 fn spawn_new_tiles<TGrid>(
 	commands: &mut Commands,
+	context: &mut Mut<GridContext<TGrid>>,
 	entity: Entity,
-	grid_assets: &Res<Assets<TGrid>>,
-	builder: &mut Mut<GridContext<TGrid>>,
+	grids: &Res<Assets<TGrid>>,
 ) where
 	TGrid: Asset + ComputableGrid,
 {
-	let Some(grid) = grid_assets.get(&builder.handle) else {
+	let Some(grid) = grids.get(&context.handle) else {
 		return;
 	};
 	let Some(mut entity) = commands.get_entity(entity) else {
 		return;
 	};
 
-	builder.grid = grid.grid();
-	builder.obstacles.clear();
+	context.grid = grid.grid();
+	context.obstacles.clear();
 	for Vec2 { x, y } in grid.translations() {
 		entity.with_child((Tile, Transform::from_xyz(x, y, 0.)));
 	}
@@ -118,7 +162,7 @@ fn is_contained_in<'a>(tiles: &'a Query<(), With<Tile>>) -> impl FnMut(&&Entity)
 }
 
 #[cfg(test)]
-mod tests {
+mod test_spawning_tiles {
 	use super::*;
 	use crate::{assert_count, components::tile::Tile, new_handle, test_tools::SingleThreaded};
 	use std::vec::IntoIter;
@@ -245,8 +289,8 @@ mod tests {
 			.world_mut()
 			.spawn(GridContext {
 				handle: handle.clone(),
-				obstacles: HashSet::from([ComputeGridNode { x: 1, y: 2 }]),
-				grid: ComputeGrid::default(),
+				obstacles: HashSet::from([ComputeGridNode::new(1, 2)]),
+				..default()
 			})
 			.id();
 
@@ -380,5 +424,191 @@ mod tests {
 		app.update();
 
 		assert!(app.world().get_entity(child_child).is_err());
+	}
+}
+
+#[cfg(test)]
+mod test_tracking_of_tiles {
+	use super::*;
+	use crate::{
+		components::tile_type::{TileType, TileTypeValue},
+		new_handle,
+		test_tools::SingleThreaded,
+	};
+
+	#[derive(Asset, TypePath)]
+	struct _Grid;
+
+	impl GetComputeGridNode for _Grid {
+		fn compute_grid_node(&self, Vec2 { x, y }: Vec2) -> Option<ComputeGridNode> {
+			Some(ComputeGridNode {
+				x: x as usize,
+				y: y as usize,
+			})
+		}
+	}
+
+	#[derive(Component, Debug, PartialEq)]
+	struct _Changed(bool);
+
+	fn detect_change(mut commands: Commands, contexts: Query<(Entity, Ref<GridContext<_Grid>>)>) {
+		for (entity, context) in &contexts {
+			commands
+				.entity(entity)
+				.insert(_Changed(context.is_changed()));
+		}
+	}
+
+	fn setup(handle: &Handle<_Grid>, grid: _Grid) -> App {
+		let mut app = App::new().single_threaded(Update);
+		let mut grids = Assets::default();
+		grids.insert(handle, grid);
+
+		app.insert_resource(grids);
+		app.add_systems(
+			Update,
+			(GridContext::<_Grid>::track_obstacles, detect_change).chain(),
+		);
+
+		app
+	}
+
+	#[test]
+	fn add_obstacle() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle, _Grid);
+		let entity = app
+			.world_mut()
+			.spawn(GridContext {
+				handle,
+				..default()
+			})
+			.with_child((
+				TileType::from_value(TileTypeValue::Obstacle),
+				Transform::from_xyz(1., 2., 3.),
+			))
+			.id();
+
+		app.update();
+
+		assert_eq!(
+			Some(&HashSet::from([ComputeGridNode::new(1, 2)])),
+			app.world()
+				.entity(entity)
+				.get::<GridContext<_Grid>>()
+				.map(|g| &g.obstacles)
+		);
+	}
+
+	#[test]
+	fn do_not_add_obstacle_when_not_child() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle, _Grid);
+		let entity = app
+			.world_mut()
+			.spawn(GridContext {
+				handle,
+				..default()
+			})
+			.id();
+		app.world_mut().spawn((
+			TileType::from_value(TileTypeValue::Obstacle),
+			Transform::from_xyz(1., 2., 3.),
+		));
+
+		app.update();
+
+		assert_eq!(
+			Some(&HashSet::from([])),
+			app.world()
+				.entity(entity)
+				.get::<GridContext<_Grid>>()
+				.map(|g| &g.obstacles)
+		);
+	}
+
+	#[test]
+	fn do_not_add_obstacle_when_not_tile_type_is_not_obstacle() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle, _Grid);
+		let entity = app
+			.world_mut()
+			.spawn(GridContext {
+				handle,
+				..default()
+			})
+			.with_child((
+				TileType::from_value(TileTypeValue::Walkable),
+				Transform::from_xyz(1., 2., 3.),
+			))
+			.id();
+
+		app.update();
+
+		assert_eq!(
+			Some(&HashSet::from([])),
+			app.world()
+				.entity(entity)
+				.get::<GridContext<_Grid>>()
+				.map(|g| &g.obstacles)
+		);
+	}
+
+	#[test]
+	fn mut_deref_context_obstacle_only_once() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle, _Grid);
+		let entity = app
+			.world_mut()
+			.spawn(GridContext {
+				handle,
+				..default()
+			})
+			.with_child((
+				TileType::from_value(TileTypeValue::Obstacle),
+				Transform::from_xyz(1., 2., 3.),
+			))
+			.id();
+
+		app.update();
+		app.update();
+
+		assert_eq!(
+			Some(&_Changed(false)),
+			app.world().entity(entity).get::<_Changed>()
+		);
+	}
+
+	#[test]
+	fn mut_deref_context_if_tile_type_mutable_deref_occurred() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle, _Grid);
+		let entity = app
+			.world_mut()
+			.spawn(GridContext {
+				handle,
+				..default()
+			})
+			.id();
+		let child = app
+			.world_mut()
+			.spawn((
+				TileType::from_value(TileTypeValue::Obstacle),
+				Transform::from_xyz(1., 2., 3.),
+			))
+			.set_parent(entity)
+			.id();
+
+		app.update();
+		app.world_mut()
+			.entity_mut(child)
+			.get_mut::<TileType>()
+			.as_deref_mut();
+		app.update();
+
+		assert_eq!(
+			Some(&_Changed(true)),
+			app.world().entity(entity).get::<_Changed>()
+		);
 	}
 }

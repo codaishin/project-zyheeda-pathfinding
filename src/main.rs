@@ -31,7 +31,13 @@ fn main() -> AppExit {
 		.register_asset_loader(CustomAssetLoader::<Mesh, TileSize>::default())
 		.add_systems(Startup, (PlayerCamera::spawn, TileGrid::spawn))
 		.add_systems(Update, MouseWorldPosition::update_using::<PlayerCamera>)
-		.add_systems(Update, GridContext::<Grid>::spawn_tiles)
+		.add_systems(
+			Update,
+			(
+				GridContext::<Grid>::spawn_tiles,
+				GridContext::<Grid>::track_obstacles,
+			),
+		)
 		.add_systems(
 			Update,
 			(
