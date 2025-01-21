@@ -35,19 +35,21 @@ fn main() -> AppExit {
 		.add_systems(
 			Update,
 			(
-				GridContext::<Grid>::spawn_tiles,
-				GridContext::<Grid>::track_obstacles,
-			),
-		)
-		.add_systems(Update, ComputePathMethod::<StraightLine>::instantiate)
-		.add_systems(
-			Update,
-			(
 				UseAsset::<Mesh>::insert,
 				UseAsset::<Grid>::insert,
 				UseAsset::<TileColliderDefinition>::insert,
 				UseAsset::<ColorMaterial>::insert.after(TileType::update_color),
 			),
+		)
+		.add_systems(
+			Update,
+			(
+				GridContext::<Grid>::spawn_tiles,
+				GridContext::<Grid>::track_obstacles,
+				ComputePathMethod::<Grid, StraightLine>::instantiate,
+				ComputePathMethod::<Grid, StraightLine>::compute_path,
+			)
+				.chain(),
 		)
 		.add_systems(
 			Update,

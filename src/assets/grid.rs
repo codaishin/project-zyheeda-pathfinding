@@ -1,7 +1,13 @@
 use crate::{
 	components::grid_context::GridContext,
 	traits::{
-		computable_grid::{ComputableGrid, ComputeGrid, ComputeGridNode, GetComputeGridNode},
+		computable_grid::{
+			ComputableGrid,
+			ComputeGrid,
+			ComputeGridNode,
+			GetComputeGridNode,
+			GetTranslation,
+		},
 		into_component::IntoComponent,
 	},
 };
@@ -42,9 +48,12 @@ impl ComputableGrid for Grid {
 	fn translations(&self) -> Self::TIter<'_> {
 		GridTranslations {
 			grid: self,
-			width: 1,
-			height: 1,
-			offset: -Vec2::new((self.width + 1) as f32 / 2., (self.height + 1) as f32 / 2.),
+			width: 0,
+			height: 0,
+			offset: Vec2 {
+				x: -((self.width - 1) as f32 / 2.),
+				y: -((self.height - 1) as f32 / 2.),
+			},
 		}
 	}
 
@@ -59,9 +68,20 @@ impl ComputableGrid for Grid {
 impl GetComputeGridNode for Grid {
 	fn compute_grid_node(&self, Vec2 { x, y }: Vec2) -> Option<ComputeGridNode> {
 		Some(ComputeGridNode::new(
-			(x / self.scale) as usize + self.width / 2,
-			(y / self.scale) as usize + self.height / 2,
+			(x / self.scale + self.width as f32 / 2.) as usize,
+			(y / self.scale + self.height as f32 / 2.) as usize,
 		))
+	}
+}
+
+impl GetTranslation for Grid {
+	fn translation(&self, ComputeGridNode { x, y }: ComputeGridNode) -> Option<Vec2> {
+		Some(
+			Vec2 {
+				x: (x as f32 - (self.width - 1) as f32 / 2.),
+				y: (y as f32 - (self.height - 1) as f32 / 2.),
+			} * self.scale,
+		)
 	}
 }
 
@@ -74,18 +94,18 @@ pub struct GridTranslations<'a> {
 
 impl GridTranslations<'_> {
 	fn out_of_bounds(&self) -> bool {
-		self.width > self.grid.width
+		self.width >= self.grid.width
 	}
 
 	fn iterate(&mut self) {
 		self.height += 1;
 
-		if self.height <= self.grid.height {
+		if self.height < self.grid.height {
 			return;
 		}
 
 		self.width += 1;
-		self.height = 1;
+		self.height = 0;
 	}
 }
 
@@ -225,9 +245,9 @@ mod tests {
 			..default()
 		};
 
-		let node = grid.compute_grid_node(Vec2::new(1.5, 0.5));
+		let node = grid.compute_grid_node(Vec2::new(1.5, -0.5));
 
-		assert_eq!(Some(ComputeGridNode::new(3, 2)), node);
+		assert_eq!(Some(ComputeGridNode::new(3, 1)), node);
 	}
 
 	#[test]
@@ -241,5 +261,57 @@ mod tests {
 		let node = grid.compute_grid_node(Vec2::new(15., 10.));
 
 		assert_eq!(Some(ComputeGridNode::new(3, 2)), node);
+	}
+
+	#[test]
+	fn get_translation_1_by_1() {
+		let grid = Grid {
+			width: 1,
+			height: 1,
+			..default()
+		};
+
+		let node = grid.translation(ComputeGridNode::ZERO);
+
+		assert_eq!(Some(Vec2::ZERO), node);
+	}
+
+	#[test]
+	fn get_translation_3_by_3() {
+		let grid = Grid {
+			width: 3,
+			height: 3,
+			..default()
+		};
+
+		let node = grid.translation(ComputeGridNode::new(2, 0));
+
+		assert_eq!(Some(Vec2::new(1., -1.)), node);
+	}
+
+	#[test]
+	fn get_translation_4_by_4() {
+		let grid = Grid {
+			width: 4,
+			height: 4,
+			..default()
+		};
+
+		let node = grid.translation(ComputeGridNode::new(3, 2));
+
+		assert_eq!(Some(Vec2::new(1.5, 0.5)), node);
+	}
+
+	#[test]
+	fn get_translation_4_by_3_scaled_by_10() {
+		let grid = Grid {
+			width: 4,
+			height: 3,
+			scale: 10.,
+		};
+
+		let node = grid.translation(ComputeGridNode::new(3, 2));
+
+		assert_eq!(Some(Vec2::new(15., 10.),), node);
 	}
 }

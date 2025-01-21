@@ -13,6 +13,10 @@ pub trait GetComputeGridNode {
 	fn compute_grid_node(&self, translation: Vec2) -> Option<ComputeGridNode>;
 }
 
+pub trait GetTranslation {
+	fn translation(&self, node: ComputeGridNode) -> Option<Vec2>;
+}
+
 #[derive(Debug, PartialEq, Default, Clone, Copy)]
 pub struct ComputeGrid {
 	pub width: usize,
