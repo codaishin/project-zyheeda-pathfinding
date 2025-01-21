@@ -4,8 +4,10 @@ use project_zyheeda_pathfinding::{
 	assets::{grid::Grid, tile_collider_definition::TileColliderDefinition},
 	components::{
 		clickable::{Clickable, MouseLeft, MouseRight},
+		compute_path_method::{straight_line::StraightLine, ComputePathMethod},
+		computed_path::ComputedPath,
+		grid_context::GridContext,
 		player_camera::PlayerCamera,
-		tile_builder::TileBuilder,
 		tile_collider::TileCollider,
 		tile_grid::TileGrid,
 		tile_type::{TileType, TileTypeValue},
@@ -31,7 +33,6 @@ fn main() -> AppExit {
 		.register_asset_loader(CustomAssetLoader::<Mesh, TileSize>::default())
 		.add_systems(Startup, (PlayerCamera::spawn, TileGrid::spawn))
 		.add_systems(Update, MouseWorldPosition::update_using::<PlayerCamera>)
-		.add_systems(Update, TileBuilder::<Grid>::spawn_tiles)
 		.add_systems(
 			Update,
 			(
@@ -40,6 +41,17 @@ fn main() -> AppExit {
 				UseAsset::<TileColliderDefinition>::insert,
 				UseAsset::<ColorMaterial>::insert.after(TileType::update_color),
 			),
+		)
+		.add_systems(
+			Update,
+			(
+				GridContext::<Grid>::spawn_tiles,
+				GridContext::<Grid>::track_obstacles,
+				ComputePathMethod::<Grid, StraightLine>::instantiate,
+				ComputePathMethod::<Grid, StraightLine>::compute_path,
+				ComputedPath::draw,
+			)
+				.chain(),
 		)
 		.add_systems(
 			Update,
