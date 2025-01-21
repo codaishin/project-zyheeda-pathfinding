@@ -1,5 +1,6 @@
 pub mod asset_handle;
 pub mod computable_grid;
+pub mod compute_path;
 pub mod concat;
 pub mod get_key;
 pub mod get_mouse_ray;

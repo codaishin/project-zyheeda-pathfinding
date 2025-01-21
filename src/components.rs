@@ -1,4 +1,5 @@
 pub mod clickable;
+pub mod compute_path_method;
 pub mod grid_context;
 pub mod player_camera;
 pub mod tile;

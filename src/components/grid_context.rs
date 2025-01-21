@@ -14,9 +14,9 @@ pub struct GridContext<TGrid = Grid>
 where
 	TGrid: Asset,
 {
-	handle: Handle<TGrid>,
-	grid: ComputeGrid,
-	obstacles: HashSet<ComputeGridNode>,
+	pub handle: Handle<TGrid>,
+	pub grid: ComputeGrid,
+	pub obstacles: HashSet<ComputeGridNode>,
 }
 
 impl<TGrid> GridContext<TGrid>
