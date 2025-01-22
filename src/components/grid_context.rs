@@ -442,8 +442,8 @@ mod test_tracking_of_tiles {
 	impl GetComputeGridNode for _Grid {
 		fn compute_grid_node(&self, Vec2 { x, y }: Vec2) -> Option<ComputeGridNode> {
 			Some(ComputeGridNode {
-				x: x as usize,
-				y: y as usize,
+				x: x as i32,
+				y: y as i32,
 			})
 		}
 	}
