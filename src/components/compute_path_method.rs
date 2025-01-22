@@ -47,34 +47,42 @@ where
 		}
 	}
 
+	#[allow(clippy::too_many_arguments)]
+	/* FIXME: This system does too much. It would probably be a good idea to move
+	 *        start and end tile detection to a separate system.
+	 */
 	pub fn compute_path(
 		mut commands: Commands,
 		grids: Res<Assets<TGrid>>,
 		computers: Query<(Entity, &Self, &GridContext<TGrid>)>,
 		computed_paths: Query<(Entity, &Parent), With<ComputedPath>>,
-		changed_tiles: Query<(&Transform, &TileType), Changed<TileType>>,
-		mut start: Local<Option<Vec2>>,
-		mut end: Local<Option<Vec2>>,
+		tiles: Query<(Entity, &Transform, Ref<TileType>)>,
+		mut removed_tiles: RemovedComponents<TileType>,
+		mut start: Local<Option<(Entity, Vec2)>>,
+		mut end: Local<Option<(Entity, Vec2)>>,
 	) where
 		TGrid: GetComputeGridNode + GetTranslation,
 		TMethod: ComputePath,
 	{
-		if changed_tiles.is_empty() {
+		let removed = removed_tiles.read().collect::<Vec<_>>();
+		if !tiles.iter().any(|(.., tile_type)| tile_type.is_changed()) && removed.is_empty() {
 			return;
 		}
 
-		Self::update_start_and_end(&mut start, &mut end, changed_tiles);
+		Self::update_start_and_end(&mut start, &mut end, tiles, removed);
 
-		let (Some(start), Some(end)) = (*start, *end) else {
-			return;
-		};
-
-		for (entity, computer, context) in &computers {
-			let Some(path) = computer.get_path(context, &grids, start, end) else {
-				continue;
-			};
-
-			Self::spawn_path(&mut commands, entity, path, &computed_paths);
+		match (*start, *end) {
+			(Some((_, start)), Some((_, end))) => {
+				for (entity, computer, context) in &computers {
+					let path = computer.get_path(context, &grids, start, end);
+					Self::spawn_path(&mut commands, entity, path, &computed_paths);
+				}
+			}
+			_ => {
+				for (entity, ..) in &computers {
+					Self::despawn_path(&mut commands, entity, &computed_paths);
+				}
+			}
 		}
 	}
 
@@ -104,24 +112,59 @@ where
 	}
 
 	fn update_start_and_end(
-		start: &mut Local<Option<Vec2>>,
-		end: &mut Local<Option<Vec2>>,
-		changed_tiles: Query<(&Transform, &TileType), Changed<TileType>>,
+		start: &mut Local<Option<(Entity, Vec2)>>,
+		end: &mut Local<Option<(Entity, Vec2)>>,
+		tiles: Query<(Entity, &Transform, Ref<TileType>)>,
+		removed_tiles: Vec<Entity>,
 	) {
-		for (transform, tile_type) in &changed_tiles {
+		for (entity, transform, tile_type) in &tiles {
+			if !tile_type.is_changed() {
+				continue;
+			}
+
 			if **tile_type == TileTypeValue::Start {
-				**start = Some(transform.translation.xy());
+				**start = Some((entity, transform.translation.xy()));
+			} else if matches!(**start, Some((start, _)) if start == entity) {
+				**start = None;
 			}
+
 			if **tile_type == TileTypeValue::End {
-				**end = Some(transform.translation.xy());
+				**end = Some((entity, transform.translation.xy()));
+			} else if matches!(**end, Some((end, _)) if end == entity) {
+				**end = None;
 			}
+		}
+
+		if matches!(**start, Some((entity, _)) if removed_tiles.contains(&entity) ) {
+			**start = None;
+		}
+
+		if matches!(**end, Some((entity, _)) if removed_tiles.contains(&entity) ) {
+			**end = None;
 		}
 	}
 
 	fn spawn_path(
 		commands: &mut Commands,
 		entity: Entity,
-		path: Vec<Vec3>,
+		path: Option<Vec<Vec3>>,
+		computed_paths: &Query<(Entity, &Parent), With<ComputedPath>>,
+	) {
+		let Some(path) = path else {
+			return;
+		};
+
+		Self::despawn_path(commands, entity, computed_paths);
+
+		let Some(mut entity) = commands.get_entity(entity) else {
+			return;
+		};
+		entity.with_child(ComputedPath(path));
+	}
+
+	fn despawn_path(
+		commands: &mut Commands,
+		entity: Entity,
 		computed_paths: &Query<(Entity, &Parent), With<ComputedPath>>,
 	) {
 		for (child, parent) in computed_paths {
@@ -133,11 +176,6 @@ where
 			};
 			child.despawn_recursive();
 		}
-
-		let Some(mut entity) = commands.get_entity(entity) else {
-			return;
-		};
-		entity.with_child(ComputedPath(path));
 	}
 }
 
@@ -686,5 +724,141 @@ mod test_compute_path {
 		app.update();
 
 		assert!(app.world().get_entity(other).is_ok());
+	}
+
+	#[test]
+	fn remove_computed_path_if_start_changed_to_not_being_start() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle);
+		let entity = app
+			.world_mut()
+			.spawn((
+				GridContext::from_handle(handle),
+				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_path().return_const(vec![]);
+				})),
+			))
+			.with_child((
+				TileType::from_value(TileTypeValue::End),
+				Transform::from_xyz(4., 5., 6.),
+			))
+			.id();
+		let start = app
+			.world_mut()
+			.spawn((
+				TileType::from_value(TileTypeValue::Start),
+				Transform::from_xyz(1., 2., 3.),
+			))
+			.set_parent(entity)
+			.id();
+
+		app.update();
+		app.world_mut()
+			.entity_mut(start)
+			.insert(TileType::from_value(TileTypeValue::Walkable));
+		app.update();
+
+		assert_count!(0, app.world().iter_entities().filter(is::<ComputedPath>));
+	}
+
+	#[test]
+	fn remove_computed_path_if_end_changed_to_not_being_end() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle);
+		let entity = app
+			.world_mut()
+			.spawn((
+				GridContext::from_handle(handle),
+				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_path().return_const(vec![]);
+				})),
+			))
+			.with_child((
+				TileType::from_value(TileTypeValue::Start),
+				Transform::from_xyz(1., 2., 3.),
+			))
+			.id();
+		let end = app
+			.world_mut()
+			.spawn((
+				TileType::from_value(TileTypeValue::End),
+				Transform::from_xyz(4., 5., 6.),
+			))
+			.set_parent(entity)
+			.id();
+
+		app.update();
+		app.world_mut()
+			.entity_mut(end)
+			.insert(TileType::from_value(TileTypeValue::Walkable));
+		app.update();
+
+		assert_count!(0, app.world().iter_entities().filter(is::<ComputedPath>));
+	}
+
+	#[test]
+	fn remove_computed_path_if_start_removed() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle);
+		let entity = app
+			.world_mut()
+			.spawn((
+				GridContext::from_handle(handle),
+				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_path().return_const(vec![]);
+				})),
+			))
+			.with_child((
+				TileType::from_value(TileTypeValue::End),
+				Transform::from_xyz(4., 5., 6.),
+			))
+			.id();
+		let start = app
+			.world_mut()
+			.spawn((
+				TileType::from_value(TileTypeValue::Start),
+				Transform::from_xyz(1., 2., 3.),
+			))
+			.set_parent(entity)
+			.id();
+
+		app.update();
+		app.world_mut().entity_mut(start).despawn();
+		app.update();
+
+		assert_count!(0, app.world().iter_entities().filter(is::<ComputedPath>));
+	}
+
+	#[test]
+	fn remove_computed_path_if_end_removed() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle);
+		let entity = app
+			.world_mut()
+			.spawn((
+				GridContext::from_handle(handle),
+				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_path().return_const(vec![]);
+				})),
+			))
+			.with_child((
+				TileType::from_value(TileTypeValue::Start),
+				Transform::from_xyz(1., 2., 3.),
+			))
+			.id();
+		let end = app
+			.world_mut()
+			.spawn((
+				TileType::from_value(TileTypeValue::End),
+				Transform::from_xyz(4., 5., 6.),
+			))
+			.set_parent(entity)
+			.id();
+
+		app.update();
+		app.world_mut().entity_mut(end).despawn();
+		app.update();
+
+		assert_count!(0, app.world().iter_entities().filter(is::<ComputedPath>));
 	}
 }
