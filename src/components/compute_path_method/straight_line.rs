@@ -2,7 +2,7 @@ use crate::traits::{
 	computable_grid::{ComputeGrid, ComputeGridNode},
 	compute_path::{ComputePath, NewComputer},
 };
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::RangeInclusive};
 
 pub struct StraightLine;
 
@@ -14,73 +14,102 @@ impl NewComputer for StraightLine {
 
 impl ComputePath for StraightLine {
 	/// Uses Bresenham's line algorithm.
-	/// Copied from [Wikipedia](https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm)
+	/// Sourced from [Wikipedia](https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm)
 	fn path(&self, start: ComputeGridNode, end: ComputeGridNode) -> Vec<ComputeGridNode> {
-		let x0 = start.x;
-		let y0 = start.y;
-		let x1 = end.x;
-		let y1 = end.y;
+		Line::new(start, end).collect()
+	}
+}
 
-		let dx = (x1 - x0).abs();
-		let dy = (y1 - y0).abs();
+struct Line {
+	new_node: &'static dyn Fn(i32, i32) -> ComputeGridNode,
+	range_high: RangeInclusive<i32>,
+	low_stepper: LowStepper,
+}
 
-		match dx > dy {
-			true if x0 > x1 => plot_line_low(x1, y1, x0, y0),
-			true => plot_line_low(x0, y0, x1, y1),
-			false if y0 > y1 => plot_line_high(x1, y1, x0, y0),
-			false => plot_line_high(x0, y0, x1, y1),
+impl Line {
+	fn new(start: ComputeGridNode, end: ComputeGridNode) -> Self {
+		let (low, high, new_node) = Self::layout(start, end);
+		let (i_low, d_low) = match low.1 > low.0 {
+			true => (1, low.1 - low.0),
+			false => (-1, low.0 - low.1),
+		};
+		let d_high = high.1 - high.0;
+
+		Line {
+			new_node,
+			range_high: high.0..=high.1,
+			low_stepper: LowStepper {
+				d: (2 * d_low) - d_high,
+				v_low: low.0,
+				i_low,
+				d_low,
+				d_high,
+			},
+		}
+	}
+
+	fn layout(
+		start: ComputeGridNode,
+		end: ComputeGridNode,
+	) -> (Low, High, &'static dyn Fn(i32, i32) -> ComputeGridNode) {
+		let dx = (end.x - start.x).abs();
+		let dy = (end.y - start.y).abs();
+		let is_low = dx > dy;
+
+		match is_low {
+			true if start.x < end.x => (Low(start.y, end.y), High(start.x, end.x), &Low::node),
+			true => (Low(end.y, start.y), High(end.x, start.x), &Low::node),
+			false if start.y < end.y => (Low(start.x, end.x), High(start.y, end.y), &High::node),
+			false => (Low(end.x, start.x), High(end.y, start.y), &High::node),
 		}
 	}
 }
 
-fn plot_line_low(x0: i32, y0: i32, x1: i32, y1: i32) -> Vec<ComputeGridNode> {
-	let mut points = vec![];
+impl Iterator for Line {
+	type Item = ComputeGridNode;
 
-	let dx = x1 - x0;
-	let mut dy = y1 - y0;
-	let mut yi = 1;
-	if dy < 0 {
-		yi = -1;
-		dy = -dy;
+	fn next(&mut self) -> Option<Self::Item> {
+		let v_high = self.range_high.next()?;
+		let node = (self.new_node)(self.low_stepper.v_low, v_high);
+
+		self.low_stepper.step();
+
+		Some(node)
 	}
-	let mut d = (2 * dy) - dx;
-	let mut y = y0;
-
-	for x in x0..=x1 {
-		points.push(ComputeGridNode::new(x, y));
-		if d > 0 {
-			y += yi;
-			d += 2 * (dy - dx);
-		} else {
-			d += 2 * dy;
-		}
-	}
-
-	points
 }
 
-fn plot_line_high(x0: i32, y0: i32, x1: i32, y1: i32) -> Vec<ComputeGridNode> {
-	let mut points = vec![];
+struct Low(i32, i32);
 
-	let mut dx = x1 - x0;
-	let dy = y1 - y0;
-	let mut xi = 1;
-	if dx < 0 {
-		xi = -1;
-		dx = -dx;
+impl Low {
+	fn node(x: i32, y: i32) -> ComputeGridNode {
+		ComputeGridNode::new(y, x)
 	}
-	let mut d = (2 * dx) - dy;
-	let mut x = x0;
+}
 
-	for y in y0..=y1 {
-		points.push(ComputeGridNode::new(x, y));
-		if d > 0 {
-			x += xi;
-			d += 2 * (dx - dy);
-		} else {
-			d += 2 * dx;
+struct High(i32, i32);
+
+impl High {
+	fn node(x: i32, y: i32) -> ComputeGridNode {
+		ComputeGridNode::new(x, y)
+	}
+}
+
+struct LowStepper {
+	v_low: i32,
+	i_low: i32,
+	d_low: i32,
+	d_high: i32,
+	d: i32,
+}
+
+impl LowStepper {
+	fn step(&mut self) {
+		if self.d <= 0 {
+			self.d += 2 * self.d_low;
+			return;
 		}
-	}
 
-	points
+		self.v_low += self.i_low;
+		self.d += 2 * (self.d_low - self.d_high);
+	}
 }
