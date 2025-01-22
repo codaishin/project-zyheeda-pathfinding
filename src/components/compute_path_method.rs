@@ -294,7 +294,7 @@ mod test_compute_path {
 
 	impl GetComputeGridNode for _Grid {
 		fn compute_grid_node(&self, Vec2 { x, y }: Vec2) -> Option<ComputeGridNode> {
-			Some(ComputeGridNode::new(x as usize, y as usize))
+			Some(ComputeGridNode::new(x as i32, y as i32))
 		}
 	}
 

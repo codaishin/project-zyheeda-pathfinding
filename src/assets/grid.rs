@@ -68,8 +68,8 @@ impl ComputableGrid for Grid {
 impl GetComputeGridNode for Grid {
 	fn compute_grid_node(&self, Vec2 { x, y }: Vec2) -> Option<ComputeGridNode> {
 		Some(ComputeGridNode::new(
-			(x / self.scale + self.width as f32 / 2.) as usize,
-			(y / self.scale + self.height as f32 / 2.) as usize,
+			(x / self.scale + self.width as f32 / 2.) as i32,
+			(y / self.scale + self.height as f32 / 2.) as i32,
 		))
 	}
 }
