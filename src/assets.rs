@@ -1,2 +1,2 @@
+pub mod collider_definition;
 pub mod grid;
-pub mod tile_collider_definition;

@@ -3,7 +3,7 @@ use super::{
 	tile_type::TileType,
 	use_asset::UseAsset,
 };
-use crate::assets::tile_collider_definition::TileColliderDefinition;
+use crate::assets::collider_definition::ColliderDefinition;
 use bevy::prelude::*;
 use std::path::Path;
 
@@ -12,7 +12,7 @@ use std::path::Path;
 	Transform,
 	Visibility,
 	UseAsset<Mesh>(Tile::asset),
-	UseAsset<TileColliderDefinition>(Tile::asset),
+	UseAsset<ColliderDefinition>(Tile::asset),
 	TileType,
 	Clickable<MouseLeft>,
 	Clickable<MouseRight>,

@@ -1,14 +1,11 @@
-use crate::{
-	assets::tile_collider_definition::TileColliderDefinition,
-	traits::asset_handle::AssetHandle,
-};
+use crate::{assets::collider_definition::ColliderDefinition, traits::asset_handle::AssetHandle};
 use bevy::prelude::*;
 
 #[derive(Component, Debug, PartialEq)]
-pub struct TileCollider(pub Handle<TileColliderDefinition>);
+pub struct TileCollider(pub Handle<ColliderDefinition>);
 
 impl AssetHandle for TileCollider {
-	type TAsset = TileColliderDefinition;
+	type TAsset = ColliderDefinition;
 
 	fn get_handle(&self) -> &Handle<Self::TAsset> {
 		let Self(handle) = self;
