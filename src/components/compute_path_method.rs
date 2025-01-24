@@ -1,3 +1,4 @@
+pub mod a_star;
 pub mod straight_line;
 
 use super::{
@@ -218,8 +219,8 @@ mod test_instantiation {
 			.world_mut()
 			.spawn(GridContext::<_Grid> {
 				grid: ComputeGrid {
-					width: 10,
-					height: 11,
+					min: ComputeGridNode::new(1, 2),
+					max: ComputeGridNode::new(3, 4),
 				},
 				obstacles: HashSet::from([ComputeGridNode::new(3, 4)]),
 				..default()
@@ -231,8 +232,8 @@ mod test_instantiation {
 		assert_eq!(
 			Some(&ComputePathMethod::<_Grid, _Method>::new(_Method {
 				grid: ComputeGrid {
-					width: 10,
-					height: 11
+					min: ComputeGridNode::new(1, 2),
+					max: ComputeGridNode::new(3, 4),
 				},
 				obstacles: HashSet::from([ComputeGridNode::new(3, 4)]),
 			})),
@@ -249,8 +250,8 @@ mod test_instantiation {
 			.world_mut()
 			.spawn(GridContext::<_Grid> {
 				grid: ComputeGrid {
-					width: 10,
-					height: 11,
+					min: ComputeGridNode::new(1, 2),
+					max: ComputeGridNode::new(3, 4),
 				},
 				obstacles: HashSet::from([ComputeGridNode::new(3, 4)]),
 				..default()
@@ -278,8 +279,8 @@ mod test_instantiation {
 			.world_mut()
 			.spawn(GridContext::<_Grid> {
 				grid: ComputeGrid {
-					width: 10,
-					height: 11,
+					min: ComputeGridNode::new(1, 2),
+					max: ComputeGridNode::new(3, 4),
 				},
 				obstacles: HashSet::from([ComputeGridNode::new(3, 4)]),
 				..default()
@@ -299,8 +300,8 @@ mod test_instantiation {
 		assert_eq!(
 			Some(&ComputePathMethod::<_Grid, _Method>::new(_Method {
 				grid: ComputeGrid {
-					width: 10,
-					height: 11
+					min: ComputeGridNode::new(1, 2),
+					max: ComputeGridNode::new(3, 4),
 				},
 				obstacles: HashSet::from([ComputeGridNode::new(3, 4)]),
 			})),

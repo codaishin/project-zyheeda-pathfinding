@@ -19,11 +19,11 @@ pub trait GetTranslation {
 
 #[derive(Debug, PartialEq, Default, Clone, Copy)]
 pub struct ComputeGrid {
-	pub width: usize,
-	pub height: usize,
+	pub min: ComputeGridNode,
+	pub max: ComputeGridNode,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Default, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Clone, Copy)]
 pub struct ComputeGridNode {
 	pub x: i32,
 	pub y: i32,
