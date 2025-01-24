@@ -1,5 +1,9 @@
 {
-	"width": 29,
-	"height": 29,
+	"shape": {
+		"Tile": {
+			"width": 29,
+			"height": 29
+		}
+	},
 	"color": "#ACA26FC7"
 }

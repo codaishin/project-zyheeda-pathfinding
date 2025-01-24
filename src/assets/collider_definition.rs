@@ -8,12 +8,12 @@ use crate::{
 use bevy::prelude::*;
 
 #[derive(Asset, TypePath, Debug, PartialEq)]
-pub struct TileColliderDefinition {
+pub struct ColliderDefinition {
 	pub half_height: f32,
 	pub half_width: f32,
 }
 
-impl IntoComponent for Handle<TileColliderDefinition> {
+impl IntoComponent for Handle<ColliderDefinition> {
 	type TComponent = TileCollider;
 
 	fn into_component(self) -> Self::TComponent {
@@ -21,7 +21,7 @@ impl IntoComponent for Handle<TileColliderDefinition> {
 	}
 }
 
-impl IsPointHit for TileColliderDefinition {
+impl IsPointHit for ColliderDefinition {
 	fn is_point_hit(&self, position: Relative) -> bool {
 		let Vec2 { x, y } = *position;
 		x.abs() <= self.half_width && y.abs() <= self.half_height
@@ -34,7 +34,7 @@ mod tests {
 
 	#[test]
 	fn is_hit_true() {
-		let tile = TileColliderDefinition {
+		let tile = ColliderDefinition {
 			half_width: 5.,
 			half_height: 3.,
 		};
@@ -44,7 +44,7 @@ mod tests {
 
 	#[test]
 	fn is_not_hit_false_when_x_greater_half_width() {
-		let tile = TileColliderDefinition {
+		let tile = ColliderDefinition {
 			half_width: 5.,
 			half_height: 3.,
 		};
@@ -54,7 +54,7 @@ mod tests {
 
 	#[test]
 	fn is_not_hit_false_when_abs_x_greater_half_width() {
-		let tile = TileColliderDefinition {
+		let tile = ColliderDefinition {
 			half_width: 5.,
 			half_height: 3.,
 		};
@@ -64,7 +64,7 @@ mod tests {
 
 	#[test]
 	fn is_not_hit_false_when_y_greater_half_height() {
-		let tile = TileColliderDefinition {
+		let tile = ColliderDefinition {
 			half_width: 5.,
 			half_height: 3.,
 		};
@@ -74,7 +74,7 @@ mod tests {
 
 	#[test]
 	fn is_not_hit_false_when_abs_y_greater_half_height() {
-		let tile = TileColliderDefinition {
+		let tile = ColliderDefinition {
 			half_width: 5.,
 			half_height: 3.,
 		};
@@ -84,7 +84,7 @@ mod tests {
 
 	#[test]
 	fn is_hit_when_rel_position_on_tile_border() {
-		let tile = TileColliderDefinition {
+		let tile = ColliderDefinition {
 			half_width: 5.,
 			half_height: 3.,
 		};

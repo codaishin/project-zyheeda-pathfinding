@@ -53,6 +53,24 @@ impl PathNode {
 	}
 }
 
+#[derive(Component, Debug, PartialEq)]
+#[require(
+	Transform,
+	Visibility,
+	UseAsset<Mesh>(Self::asset),
+	UseAsset<ColorMaterial>(PathNode::asset)
+)]
+pub struct PathNodeConnection;
+
+impl PathNodeConnection {
+	fn asset<TAsset>() -> UseAsset<TAsset>
+	where
+		TAsset: Asset,
+	{
+		UseAsset::new(Path::new("path_node_connection.json"))
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

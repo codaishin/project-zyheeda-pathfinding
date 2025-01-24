@@ -1,5 +1,9 @@
 {
-	"width": 10,
-	"height": 10,
+	"shape": {
+		"Tile": {
+			"width": 10,
+			"height": 10
+		}
+	},
 	"color": "#000000"
 }
