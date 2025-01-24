@@ -1,8 +1,6 @@
-use std::path::Path;
-
-use bevy::prelude::*;
-
 use super::use_asset::UseAsset;
+use bevy::prelude::*;
+use std::path::Path;
 
 #[derive(Component, Debug, PartialEq)]
 #[require(Transform, Visibility)]
@@ -69,10 +67,34 @@ impl PathNodeConnection {
 	{
 		UseAsset::new(Path::new("path_node_connection.json"))
 	}
+
+	pub fn draw(
+		mut commands: Commands,
+		nodes: Query<(Entity, &PathNode), Added<PathNode>>,
+		transforms: Query<&Transform>,
+	) {
+		for (entity, PathNode { previous }) in &nodes {
+			let Some(previous) = previous else {
+				continue;
+			};
+			let Ok(pos) = transforms.get(entity) else {
+				continue;
+			};
+			let Ok(pos_previous) = transforms.get(*previous) else {
+				continue;
+			};
+			let Some(mut entity) = commands.get_entity(entity) else {
+				continue;
+			};
+			let pos = (pos_previous.translation - pos.translation) / 2.;
+
+			entity.with_child((PathNodeConnection, Transform::from_translation(pos)));
+		}
+	}
 }
 
 #[cfg(test)]
-mod tests {
+mod test_draw_path_nodes {
 	use super::*;
 	use crate::{assert_count, test_tools::SingleThreaded};
 
@@ -196,6 +218,118 @@ mod tests {
 				e.get::<PathNode>(),
 				e.get::<Transform>().map(|t| t.translation)
 			))
+		);
+	}
+}
+
+#[cfg(test)]
+mod test_draw_node_connection {
+	use super::*;
+	use crate::{assert_count, test_tools::SingleThreaded};
+
+	fn child_of(entity: Entity) -> impl Fn(&EntityRef) -> bool {
+		move |child| {
+			child
+				.get::<Parent>()
+				.map(|p| p.get() == entity)
+				.unwrap_or(false)
+		}
+	}
+
+	fn is<TComponent>(entity: &EntityRef) -> bool
+	where
+		TComponent: Component,
+	{
+		entity.contains::<TComponent>()
+	}
+
+	fn setup() -> App {
+		let mut app = App::new().single_threaded(Update);
+		app.add_systems(Update, PathNodeConnection::draw);
+
+		app
+	}
+
+	#[test]
+	fn spawn_connection_as_child_of_node() {
+		let mut app = setup();
+		let node_a = app
+			.world_mut()
+			.spawn((PathNode { previous: None }, Transform::default()))
+			.id();
+		let node_b = app
+			.world_mut()
+			.spawn((
+				PathNode {
+					previous: Some(node_a),
+				},
+				Transform::default(),
+			))
+			.id();
+
+		app.update();
+
+		let entities = app.world().iter_entities();
+		let connections = assert_count!(1, entities.filter(is::<PathNodeConnection>));
+		assert_count!(1, connections.into_iter().filter(child_of(node_b)));
+	}
+
+	#[test]
+	fn do_not_spawn_connection_as_child_of_non_node() {
+		let mut app = setup();
+		let node_b = app.world_mut().spawn(Transform::default()).id();
+
+		app.update();
+
+		assert_count!(0, app.world().iter_entities().filter(child_of(node_b)));
+	}
+
+	#[test]
+	fn spawn_connection_as_child_of_node_only_once() {
+		let mut app = setup();
+		let node_a = app
+			.world_mut()
+			.spawn((PathNode { previous: None }, Transform::default()))
+			.id();
+		let node_b = app
+			.world_mut()
+			.spawn((
+				PathNode {
+					previous: Some(node_a),
+				},
+				Transform::default(),
+			))
+			.id();
+
+		app.update();
+		app.update();
+
+		assert_count!(1, app.world().iter_entities().filter(child_of(node_b)));
+	}
+
+	#[test]
+	fn spawn_connection_between_nodes() {
+		let mut app = setup();
+		let node_a = app
+			.world_mut()
+			.spawn((PathNode { previous: None }, Transform::from_xyz(1., 1., 1.)))
+			.id();
+		let node_b = app
+			.world_mut()
+			.spawn((
+				PathNode {
+					previous: Some(node_a),
+				},
+				Transform::from_xyz(5., 5., 5.),
+			))
+			.id();
+
+		app.update();
+
+		let [connection] = assert_count!(1, app.world().iter_entities().filter(child_of(node_b)));
+		assert_eq!(
+			Some(&Transform::from_xyz(2., 2., 2.)),
+			connection.get::<Transform>(),
 		);
 	}
 }
