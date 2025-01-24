@@ -64,9 +64,6 @@ where
 		TGrid: GetComputeGridNode,
 	{
 		for (transform, tile_type, parent) in &tiles {
-			if **tile_type != TileTypeValue::Obstacle {
-				continue;
-			}
 			let Ok(mut context) = contexts.get_mut(parent.get()) else {
 				continue;
 			};
@@ -77,7 +74,14 @@ where
 				continue;
 			};
 
-			context.obstacles.insert(node);
+			match **tile_type {
+				TileTypeValue::Obstacle => {
+					context.obstacles.insert(node);
+				}
+				_ => {
+					context.obstacles.remove(&node);
+				}
+			}
 		}
 	}
 }
@@ -609,6 +613,34 @@ mod test_tracking_of_tiles {
 		assert_eq!(
 			Some(&_Changed(true)),
 			app.world().entity(entity).get::<_Changed>()
+		);
+	}
+
+	#[test]
+	fn remove_obstacle() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle, _Grid);
+		let entity = app
+			.world_mut()
+			.spawn(GridContext {
+				handle,
+				obstacles: HashSet::from([ComputeGridNode::new(1, 2)]),
+				..default()
+			})
+			.with_child((
+				TileType::from_value(TileTypeValue::Walkable),
+				Transform::from_xyz(1., 2., 3.),
+			))
+			.id();
+
+		app.update();
+
+		assert_eq!(
+			Some(&HashSet::from([])),
+			app.world()
+				.entity(entity)
+				.get::<GridContext<_Grid>>()
+				.map(|g| &g.obstacles)
 		);
 	}
 }
