@@ -10,14 +10,24 @@ pub struct ComputedPath(pub Vec<Vec3>);
 
 impl ComputedPath {
 	pub fn draw(mut commands: Commands, paths: Query<(Entity, &Self), Changed<Self>>) {
+		let mut previous = None;
 		for (entity, Self(path)) in &paths {
 			let Some(mut entity) = commands.get_entity(entity) else {
 				continue;
 			};
 			entity.despawn_descendants();
 
-			for (i, translation) in path.iter().cloned().enumerate() {
-				entity.with_child((PathNode(i), Transform::from_translation(translation)));
+			for translation in path.iter().cloned() {
+				entity.with_children(|parent| {
+					previous = Some(
+						parent
+							.spawn((
+								PathNode { previous },
+								Transform::from_translation(translation),
+							))
+							.id(),
+					);
+				});
 			}
 		}
 	}
@@ -30,7 +40,9 @@ impl ComputedPath {
 	UseAsset<Mesh>(Self::asset),
 	UseAsset<ColorMaterial>(Self::asset)
 )]
-pub struct PathNode(usize);
+pub struct PathNode {
+	previous: Option<Entity>,
+}
 
 impl PathNode {
 	fn asset<TAsset>() -> UseAsset<TAsset>
@@ -82,8 +94,16 @@ mod tests {
 		let nodes = assert_count!(2, app.world().iter_entities().filter(is::<PathNode>));
 		assert_eq!(
 			[
-				(Some(&PathNode(0)), Some(Vec3::new(1., 2., 3.))),
-				(Some(&PathNode(1)), Some(Vec3::new(3., 4., 5.))),
+				(
+					Some(&PathNode { previous: None }),
+					Some(Vec3::new(1., 2., 3.))
+				),
+				(
+					Some(&PathNode {
+						previous: Some(nodes[0].id())
+					}),
+					Some(Vec3::new(3., 4., 5.))
+				),
 			],
 			nodes.map(|e| (
 				e.get::<PathNode>(),
@@ -143,8 +163,16 @@ mod tests {
 		let nodes = assert_count!(2, app.world().iter_entities().filter(is::<PathNode>));
 		assert_eq!(
 			[
-				(Some(&PathNode(0)), Some(Vec3::new(15., 25., 35.))),
-				(Some(&PathNode(1)), Some(Vec3::new(35., 45., 55.))),
+				(
+					Some(&PathNode { previous: None }),
+					Some(Vec3::new(15., 25., 35.))
+				),
+				(
+					Some(&PathNode {
+						previous: Some(nodes[0].id())
+					}),
+					Some(Vec3::new(35., 45., 55.))
+				),
 			],
 			nodes.map(|e| (
 				e.get::<PathNode>(),
