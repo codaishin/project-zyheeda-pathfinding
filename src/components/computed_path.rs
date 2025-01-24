@@ -86,9 +86,15 @@ impl PathNodeConnection {
 			let Some(mut entity) = commands.get_entity(entity) else {
 				continue;
 			};
-			let pos = (pos_previous.translation - pos.translation) / 2.;
+			let offset = pos_previous.translation - pos.translation;
+			let length = offset.length();
 
-			entity.with_child((PathNodeConnection, Transform::from_translation(pos)));
+			entity.with_child((
+				PathNodeConnection,
+				Transform::from_translation(offset / 2.)
+					.looking_to(Vec3::Z, offset)
+					.with_scale(Vec3::new(1., length, 1.)),
+			));
 		}
 	}
 }
@@ -308,11 +314,11 @@ mod test_draw_node_connection {
 	}
 
 	#[test]
-	fn spawn_connection_between_nodes() {
+	fn spawn_connection_between_nodes_relative_and_rotated() {
 		let mut app = setup();
 		let node_a = app
 			.world_mut()
-			.spawn((PathNode { previous: None }, Transform::from_xyz(1., 1., 1.)))
+			.spawn((PathNode { previous: None }, Transform::from_xyz(1., 1., 0.)))
 			.id();
 		let node_b = app
 			.world_mut()
@@ -320,7 +326,7 @@ mod test_draw_node_connection {
 				PathNode {
 					previous: Some(node_a),
 				},
-				Transform::from_xyz(5., 5., 5.),
+				Transform::from_xyz(2., 1., 0.),
 			))
 			.id();
 
@@ -328,7 +334,37 @@ mod test_draw_node_connection {
 
 		let [connection] = assert_count!(1, app.world().iter_entities().filter(child_of(node_b)));
 		assert_eq!(
-			Some(&Transform::from_xyz(2., 2., 2.)),
+			Some(&Transform::from_xyz(-0.5, 0., 0.).looking_to(Vec3::Z, Vec3::new(-1., 0., 0.))),
+			connection.get::<Transform>(),
+		);
+	}
+
+	#[test]
+	fn spawn_connection_between_nodes_relative_rotated_and_stretched() {
+		let mut app = setup();
+		let node_a = app
+			.world_mut()
+			.spawn((PathNode { previous: None }, Transform::from_xyz(1., 1., 0.)))
+			.id();
+		let node_b = app
+			.world_mut()
+			.spawn((
+				PathNode {
+					previous: Some(node_a),
+				},
+				Transform::from_xyz(5., 1., 0.),
+			))
+			.id();
+
+		app.update();
+
+		let [connection] = assert_count!(1, app.world().iter_entities().filter(child_of(node_b)));
+		assert_eq!(
+			Some(
+				&Transform::from_xyz(-2., 0., 0.)
+					.looking_to(Vec3::Z, Vec3::new(-1., 0., 0.))
+					.with_scale(Vec3::new(1., 4., 1.))
+			),
 			connection.get::<Transform>(),
 		);
 	}
