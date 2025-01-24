@@ -4,7 +4,7 @@ use project_zyheeda_pathfinding::{
 	assets::{collider_definition::ColliderDefinition, grid::Grid},
 	components::{
 		clickable::{Clickable, MouseLeft, MouseRight},
-		compute_path_method::{straight_line::StraightLine, ComputePathMethod},
+		compute_path_method::{a_star::AStar, ComputePathMethod},
 		computed_path::{ComputedPath, PathNodeConnection},
 		grid_context::GridContext,
 		player_camera::PlayerCamera,
@@ -47,8 +47,8 @@ fn main() -> AppExit {
 			(
 				GridContext::<Grid>::spawn_tiles,
 				GridContext::<Grid>::track_obstacles,
-				ComputePathMethod::<Grid, StraightLine>::instantiate,
-				ComputePathMethod::<Grid, StraightLine>::compute_path,
+				ComputePathMethod::<Grid, AStar>::instantiate,
+				ComputePathMethod::<Grid, AStar>::compute_path,
 				ComputedPath::draw,
 				PathNodeConnection::draw,
 			)

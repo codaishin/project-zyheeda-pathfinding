@@ -1,3 +1,4 @@
+pub mod a_star;
 pub mod straight_line;
 
 use super::{
