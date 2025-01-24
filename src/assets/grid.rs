@@ -15,15 +15,13 @@ use bevy::prelude::*;
 
 #[derive(Asset, TypePath, Debug, PartialEq)]
 pub struct Grid {
-	pub height: usize,
-	pub width: usize,
+	pub max: Vec2,
 	pub scale: f32,
 }
 
 impl Grid {
 	const DEFAULT: Grid = Grid {
-		height: 1,
-		width: 1,
+		max: Vec2::ZERO,
 		scale: 1.,
 	};
 }
@@ -51,16 +49,16 @@ impl ComputableGrid for Grid {
 			width: 0,
 			height: 0,
 			offset: Vec2 {
-				x: -((self.width - 1) as f32 / 2.),
-				y: -((self.height - 1) as f32 / 2.),
+				x: -(self.max.x / 2.),
+				y: -(self.max.y / 2.),
 			},
 		}
 	}
 
 	fn grid(&self) -> ComputeGrid {
 		ComputeGrid {
-			width: self.width,
-			height: self.height,
+			min: ComputeGridNode::new(0, 0),
+			max: ComputeGridNode::new(self.max.x as i32, self.max.y as i32),
 		}
 	}
 }
@@ -68,8 +66,8 @@ impl ComputableGrid for Grid {
 impl GetComputeGridNode for Grid {
 	fn compute_grid_node(&self, Vec2 { x, y }: Vec2) -> Option<ComputeGridNode> {
 		Some(ComputeGridNode::new(
-			(x / self.scale + self.width as f32 / 2.) as i32,
-			(y / self.scale + self.height as f32 / 2.) as i32,
+			(x / self.scale + self.max.x / 2.) as i32,
+			(y / self.scale + self.max.y / 2.) as i32,
 		))
 	}
 }
@@ -78,8 +76,8 @@ impl GetTranslation for Grid {
 	fn translation(&self, ComputeGridNode { x, y }: ComputeGridNode) -> Option<Vec2> {
 		Some(
 			Vec2 {
-				x: (x as f32 - (self.width - 1) as f32 / 2.),
-				y: (y as f32 - (self.height - 1) as f32 / 2.),
+				x: (x as f32 - self.max.x / 2.),
+				y: (y as f32 - self.max.y / 2.),
 			} * self.scale,
 		)
 	}
@@ -94,13 +92,13 @@ pub struct GridTranslations<'a> {
 
 impl GridTranslations<'_> {
 	fn out_of_bounds(&self) -> bool {
-		self.width >= self.grid.width
+		self.width as f32 > self.grid.max.x
 	}
 
 	fn iterate(&mut self) {
 		self.height += 1;
 
-		if self.height < self.grid.height {
+		if self.height as f32 <= self.grid.max.y {
 			return;
 		}
 
@@ -132,11 +130,7 @@ mod tests {
 
 	#[test]
 	fn translations_1_by_1() {
-		let grid = Grid {
-			height: 1,
-			width: 1,
-			..default()
-		};
+		let grid = Grid::default();
 
 		let [translation] = assert_count!(1, grid.translations());
 
@@ -146,8 +140,7 @@ mod tests {
 	#[test]
 	fn translations_3_by_3() {
 		let grid = Grid {
-			width: 3,
-			height: 3,
+			max: Vec2::new(2., 2.),
 			..default()
 		};
 
@@ -172,8 +165,7 @@ mod tests {
 	#[test]
 	fn translations_2_by_2() {
 		let grid = Grid {
-			width: 2,
-			height: 2,
+			max: Vec2::new(1., 1.),
 			..default()
 		};
 
@@ -193,8 +185,7 @@ mod tests {
 	#[test]
 	fn translations_2_by_2_with_scale_10() {
 		let grid = Grid {
-			width: 2,
-			height: 2,
+			max: Vec2::new(1., 1.),
 			scale: 10.,
 		};
 
@@ -213,11 +204,7 @@ mod tests {
 
 	#[test]
 	fn get_compute_node_1_by_1() {
-		let grid = Grid {
-			width: 1,
-			height: 1,
-			..default()
-		};
+		let grid = Grid::default();
 
 		let node = grid.compute_grid_node(Vec2::ZERO);
 
@@ -227,8 +214,7 @@ mod tests {
 	#[test]
 	fn get_compute_node_3_by_3() {
 		let grid = Grid {
-			width: 3,
-			height: 3,
+			max: Vec2::new(2., 2.),
 			..default()
 		};
 
@@ -240,8 +226,7 @@ mod tests {
 	#[test]
 	fn get_compute_node_4_by_4() {
 		let grid = Grid {
-			width: 4,
-			height: 4,
+			max: Vec2::new(3., 3.),
 			..default()
 		};
 
@@ -253,8 +238,7 @@ mod tests {
 	#[test]
 	fn get_compute_node_4_by_3_scaled_by_10() {
 		let grid = Grid {
-			width: 4,
-			height: 3,
+			max: Vec2::new(3., 2.),
 			scale: 10.,
 		};
 
@@ -265,11 +249,7 @@ mod tests {
 
 	#[test]
 	fn get_translation_1_by_1() {
-		let grid = Grid {
-			width: 1,
-			height: 1,
-			..default()
-		};
+		let grid = Grid::default();
 
 		let node = grid.translation(ComputeGridNode::ZERO);
 
@@ -279,8 +259,7 @@ mod tests {
 	#[test]
 	fn get_translation_3_by_3() {
 		let grid = Grid {
-			width: 3,
-			height: 3,
+			max: Vec2::new(2., 2.),
 			..default()
 		};
 
@@ -292,8 +271,7 @@ mod tests {
 	#[test]
 	fn get_translation_4_by_4() {
 		let grid = Grid {
-			width: 4,
-			height: 4,
+			max: Vec2::new(3., 3.),
 			..default()
 		};
 
@@ -305,8 +283,7 @@ mod tests {
 	#[test]
 	fn get_translation_4_by_3_scaled_by_10() {
 		let grid = Grid {
-			width: 4,
-			height: 3,
+			max: Vec2::new(3., 2.),
 			scale: 10.,
 		};
 

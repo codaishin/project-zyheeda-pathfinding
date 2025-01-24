@@ -249,8 +249,8 @@ mod test_spawning_tiles {
 			&handle,
 			_Grid {
 				grid: ComputeGrid {
-					width: 11,
-					height: 4,
+					min: ComputeGridNode::new(1, 2),
+					max: ComputeGridNode::new(3, 4),
 				},
 				..default()
 			},
@@ -266,8 +266,8 @@ mod test_spawning_tiles {
 
 		assert_eq!(
 			Some(ComputeGrid {
-				width: 11,
-				height: 4
+				min: ComputeGridNode::new(1, 2),
+				max: ComputeGridNode::new(3, 4),
 			}),
 			app.world()
 				.entity(entity)
@@ -283,8 +283,8 @@ mod test_spawning_tiles {
 			&handle,
 			_Grid {
 				grid: ComputeGrid {
-					width: 11,
-					height: 4,
+					min: ComputeGridNode::new(1, 2),
+					max: ComputeGridNode::new(3, 4),
 				},
 				..default()
 			},
