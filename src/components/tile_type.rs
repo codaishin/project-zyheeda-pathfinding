@@ -8,7 +8,7 @@ pub struct TileType {
 	value: TileTypeValue,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Default, Clone, Copy)]
 pub enum TileTypeValue {
 	#[default]
 	Walkable,
@@ -32,6 +32,10 @@ impl TileType {
 	#[cfg(test)]
 	pub fn from_value(value: TileTypeValue) -> Self {
 		Self { value }
+	}
+
+	pub fn value(&self) -> TileTypeValue {
+		self.value
 	}
 
 	pub fn update_color(mut commands: Commands, obstacles: Query<(Entity, &Self), Changed<Self>>) {
