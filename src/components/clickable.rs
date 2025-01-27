@@ -21,6 +21,15 @@ where
 
 impl<TKeyDefinition> Clickable<TKeyDefinition>
 where
+	TKeyDefinition: GetKey,
+{
+	pub fn is_clicked(&self) -> bool {
+		self.clicked
+	}
+}
+
+impl<TKeyDefinition> Clickable<TKeyDefinition>
+where
 	TKeyDefinition: GetKey + Sync + Send + 'static,
 	TKeyDefinition::TKey: Copy + Eq + Hash + Send + Sync + 'static,
 {
@@ -30,10 +39,6 @@ where
 			clicked,
 			_p: PhantomData,
 		}
-	}
-
-	pub fn is_clicked(&self) -> bool {
-		self.clicked
 	}
 
 	fn set_clicked<TCollider>(
