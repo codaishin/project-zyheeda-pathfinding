@@ -6,5 +6,6 @@ pub trait NewComputer {
 }
 
 pub trait ComputePath {
+	fn draw_connections(&self) -> bool;
 	fn path(&self, start: ComputeGridNode, end: ComputeGridNode) -> Vec<ComputeGridNode>;
 }
