@@ -13,6 +13,10 @@ impl NewComputer for StraightLine {
 }
 
 impl ComputePath for StraightLine {
+	fn draw_connections(&self) -> bool {
+		const { true }
+	}
+
 	/// Uses Bresenham's line algorithm.
 	/// Sourced from [Wikipedia](https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm)
 	fn path(&self, start: ComputeGridNode, end: ComputeGridNode) -> Vec<ComputeGridNode> {

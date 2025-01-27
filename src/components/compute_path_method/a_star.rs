@@ -42,6 +42,10 @@ impl NewComputer for AStar {
 }
 
 impl ComputePath for AStar {
+	fn draw_connections(&self) -> bool {
+		const { true }
+	}
+
 	fn path(&self, start: ComputeGridNode, end: ComputeGridNode) -> Vec<ComputeGridNode> {
 		let mut open = OpenList::new(start, end);
 		let mut closed = ClosedList::default();

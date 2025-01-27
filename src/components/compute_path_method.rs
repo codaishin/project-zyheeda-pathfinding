@@ -77,7 +77,7 @@ where
 			(Some((_, start)), Some((_, end))) => {
 				for (entity, computer, context) in &computers {
 					let path = computer.get_path(context, &grids, start, end);
-					Self::spawn_path(&mut commands, entity, path, &computed_paths);
+					computer.spawn_path(&mut commands, entity, path, &computed_paths);
 				}
 			}
 			_ => {
@@ -147,11 +147,14 @@ where
 	}
 
 	fn spawn_path(
+		&self,
 		commands: &mut Commands,
 		entity: Entity,
 		path: Option<Vec<Vec3>>,
 		computed_paths: &Query<(Entity, &Parent), With<ComputedPath>>,
-	) {
+	) where
+		TMethod: ComputePath,
+	{
 		let Some(path) = path else {
 			return;
 		};
@@ -161,7 +164,10 @@ where
 		let Some(mut entity) = commands.get_entity(entity) else {
 			return;
 		};
-		entity.with_child(ComputedPath(path));
+		entity.with_child(ComputedPath {
+			path,
+			draw_connections: self.method.draw_connections(),
+		});
 	}
 
 	fn despawn_path(
@@ -347,6 +353,7 @@ mod test_compute_path {
 	mock! {
 		_Method {}
 		impl ComputePath for _Method {
+			fn draw_connections(&self) -> bool;
 			fn path(&self, start: ComputeGridNode, end: ComputeGridNode) -> Vec<ComputeGridNode>;
 		}
 	}
@@ -382,13 +389,14 @@ mod test_compute_path {
 	}
 
 	#[test]
-	fn spawn_path() {
+	fn spawn_path_without_connections() {
 		let handle = new_handle!(_Grid);
 		let mut app = setup(&handle);
 		app.world_mut()
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path()
 						.return_const(vec![ComputeGridNode::new(1, 2), ComputeGridNode::new(4, 5)]);
 				})),
@@ -406,10 +414,44 @@ mod test_compute_path {
 
 		let [path] = assert_count!(1, app.world().iter_entities().filter(is::<ComputedPath>));
 		assert_eq!(
-			Some(&ComputedPath(vec![
-				Vec3::new(1., 2., 1.),
-				Vec3::new(4., 5., 1.)
-			])),
+			Some(&ComputedPath {
+				path: vec![Vec3::new(1., 2., 1.), Vec3::new(4., 5., 1.)],
+				draw_connections: false,
+			}),
+			path.get::<ComputedPath>()
+		);
+	}
+
+	#[test]
+	fn spawn_path_with_connections() {
+		let handle = new_handle!(_Grid);
+		let mut app = setup(&handle);
+		app.world_mut()
+			.spawn((
+				GridContext::from_handle(handle),
+				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(true);
+					mock.expect_path()
+						.return_const(vec![ComputeGridNode::new(1, 2), ComputeGridNode::new(4, 5)]);
+				})),
+			))
+			.with_child((
+				TileType::from_value(TileTypeValue::Start),
+				Transform::default(),
+			))
+			.with_child((
+				TileType::from_value(TileTypeValue::End),
+				Transform::default(),
+			));
+
+		app.update();
+
+		let [path] = assert_count!(1, app.world().iter_entities().filter(is::<ComputedPath>));
+		assert_eq!(
+			Some(&ComputedPath {
+				path: vec![Vec3::new(1., 2., 1.), Vec3::new(4., 5., 1.)],
+				draw_connections: true,
+			}),
 			path.get::<ComputedPath>()
 		);
 	}
@@ -423,6 +465,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path()
 						.return_const(vec![ComputeGridNode::new(1, 2), ComputeGridNode::new(4, 5)]);
 				})),
@@ -451,6 +494,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path()
 						.return_const(vec![ComputeGridNode::new(1, 2), ComputeGridNode::new(4, 5)]);
 				})),
@@ -478,6 +522,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path()
 						.times(1)
 						.with(
@@ -508,6 +553,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path()
 						.times(1)
 						.with(
@@ -538,6 +584,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path().times(1).return_const(vec![]);
 				})),
 			))
@@ -563,6 +610,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path()
 						.times(1)
 						.with(
@@ -600,6 +648,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path()
 						.times(1)
 						.with(
@@ -644,6 +693,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path().return_const(vec![]);
 				})),
 			))
@@ -675,11 +725,12 @@ mod test_compute_path {
 	fn do_not_remove_unrelated_computed_path() {
 		let handle = new_handle!(_Grid);
 		let mut app = setup(&handle);
-		let other = app.world_mut().spawn(ComputedPath(vec![])).id();
+		let other = app.world_mut().spawn(ComputedPath::default()).id();
 		app.world_mut()
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path().return_const(vec![]);
 				})),
 			))
@@ -706,6 +757,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path().return_const(vec![]);
 				})),
 			))
@@ -742,6 +794,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path().return_const(vec![]);
 				})),
 			))
@@ -778,6 +831,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path().return_const(vec![]);
 				})),
 			))
@@ -812,6 +866,7 @@ mod test_compute_path {
 			.spawn((
 				GridContext::from_handle(handle),
 				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
+					mock.expect_draw_connections().return_const(false);
 					mock.expect_path().return_const(vec![]);
 				})),
 			))
