@@ -48,7 +48,7 @@ impl ComputePath for AStar {
 
 	fn path(&self, start: ComputeGridNode, end: ComputeGridNode) -> Vec<ComputeGridNode> {
 		let mut open = OpenList::new(start, end);
-		let mut closed = ClosedList::default();
+		let mut closed = ClosedList::new(start);
 		let mut g_scores = GScores::new(start);
 
 		while let Some(current) = open.pop_lowest_f() {
@@ -77,27 +77,43 @@ impl ComputePath for AStar {
 	}
 }
 
-#[derive(Debug, PartialEq, Default)]
-struct ClosedList(HashMap<ComputeGridNode, ComputeGridNode>);
+#[derive(Debug, PartialEq)]
+pub struct ClosedList {
+	start: ComputeGridNode,
+	parents: HashMap<ComputeGridNode, ComputeGridNode>,
+}
 
 impl ClosedList {
-	fn insert(&mut self, node: ComputeGridNode, comes_from: ComputeGridNode) {
-		self.0.insert(node, comes_from);
+	pub fn new(start: ComputeGridNode) -> Self {
+		Self {
+			start,
+			parents: HashMap::from([(start, start)]),
+		}
 	}
 
-	fn walk_back_from<'a>(
+	pub fn insert(&mut self, node: ComputeGridNode, comes_from: ComputeGridNode) {
+		self.parents.insert(node, comes_from);
+	}
+
+	pub fn walk_back_from<'a>(
 		&'a self,
 		node: &'a ComputeGridNode,
 	) -> impl Iterator<Item = ComputeGridNode> + 'a {
 		WalkBack {
 			current: Some(node),
-			connections: &self.0,
+			start: self.start,
+			parents: &self.parents,
 		}
+	}
+
+	pub fn parent(&self, node: &ComputeGridNode) -> Option<&ComputeGridNode> {
+		self.parents.get(node)
 	}
 }
 
 struct WalkBack<'a> {
-	connections: &'a HashMap<ComputeGridNode, ComputeGridNode>,
+	start: ComputeGridNode,
+	parents: &'a HashMap<ComputeGridNode, ComputeGridNode>,
 	current: Option<&'a ComputeGridNode>,
 }
 
@@ -106,20 +122,24 @@ impl Iterator for WalkBack<'_> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let next = self.current?;
-		self.current = self.connections.get(next);
+
+		self.current = match next == &self.start {
+			true => None,
+			false => self.parents.get(next),
+		};
 
 		Some(*next)
 	}
 }
 
 #[derive(Debug, Default)]
-struct OpenList {
+pub struct OpenList {
 	end: ComputeGridNode,
 	heap: BinaryHeap<Reverse<Node>>,
 }
 
 impl OpenList {
-	fn new(start: ComputeGridNode, end: ComputeGridNode) -> Self {
+	pub fn new(start: ComputeGridNode, end: ComputeGridNode) -> Self {
 		let f = AStar::distance(&start, &end);
 		OpenList {
 			end,
@@ -127,11 +147,11 @@ impl OpenList {
 		}
 	}
 
-	fn pop_lowest_f(&mut self) -> Option<ComputeGridNode> {
+	pub fn pop_lowest_f(&mut self) -> Option<ComputeGridNode> {
 		self.heap.pop().map(|Reverse(Node { node, .. })| node)
 	}
 
-	fn push(&mut self, node: ComputeGridNode, g: u32) {
+	pub fn push(&mut self, node: ComputeGridNode, g: u32) {
 		let f = g + AStar::distance(&node, &self.end);
 		self.heap.push(Reverse(Node { node, f }));
 	}
@@ -157,18 +177,18 @@ impl Ord for Node {
 	}
 }
 
-struct GScores(HashMap<ComputeGridNode, u32>);
+pub struct GScores(HashMap<ComputeGridNode, u32>);
 
 impl GScores {
-	fn new(start: ComputeGridNode) -> Self {
+	pub fn new(start: ComputeGridNode) -> Self {
 		Self(HashMap::from([(start, 0)]))
 	}
 
-	fn insert(&mut self, node: ComputeGridNode, score: u32) {
+	pub fn insert(&mut self, node: ComputeGridNode, score: u32) {
 		self.0.insert(node, score);
 	}
 
-	fn get(&self, node: &ComputeGridNode) -> u32 {
+	pub fn get(&self, node: &ComputeGridNode) -> u32 {
 		self.0.get(node).cloned().unwrap_or(u32::MAX)
 	}
 }

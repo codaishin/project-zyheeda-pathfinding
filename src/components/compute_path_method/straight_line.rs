@@ -24,14 +24,14 @@ impl ComputePath for StraightLine {
 	}
 }
 
-struct Line {
+pub struct Line {
 	new_node: &'static dyn Fn(i32, i32) -> ComputeGridNode,
 	range_high: RangeInclusive<i32>,
 	low_stepper: LowStepper,
 }
 
 impl Line {
-	fn new(start: ComputeGridNode, end: ComputeGridNode) -> Self {
+	pub fn new(start: ComputeGridNode, end: ComputeGridNode) -> Self {
 		let (low, high, new_node) = Self::layout(start, end);
 		let (i_low, d_low) = match low.1 > low.0 {
 			true => (1, low.1 - low.0),
