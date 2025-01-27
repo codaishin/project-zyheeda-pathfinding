@@ -161,7 +161,7 @@ where
 		let Some(mut entity) = commands.get_entity(entity) else {
 			return;
 		};
-		entity.with_child(ComputedPath(path));
+		entity.with_child(ComputedPath { path, ..default() });
 	}
 
 	fn despawn_path(
@@ -406,10 +406,10 @@ mod test_compute_path {
 
 		let [path] = assert_count!(1, app.world().iter_entities().filter(is::<ComputedPath>));
 		assert_eq!(
-			Some(&ComputedPath(vec![
-				Vec3::new(1., 2., 1.),
-				Vec3::new(4., 5., 1.)
-			])),
+			Some(&ComputedPath {
+				path: vec![Vec3::new(1., 2., 1.), Vec3::new(4., 5., 1.)],
+				..default()
+			}),
 			path.get::<ComputedPath>()
 		);
 	}
@@ -675,7 +675,7 @@ mod test_compute_path {
 	fn do_not_remove_unrelated_computed_path() {
 		let handle = new_handle!(_Grid);
 		let mut app = setup(&handle);
-		let other = app.world_mut().spawn(ComputedPath(vec![])).id();
+		let other = app.world_mut().spawn(ComputedPath::default()).id();
 		app.world_mut()
 			.spawn((
 				GridContext::from_handle(handle),
