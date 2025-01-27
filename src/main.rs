@@ -64,13 +64,18 @@ fn main() -> AppExit {
 		.add_systems(
 			Update,
 			(
+				PathPlacement::drag_on_hold::<MouseLeft>,
+				PathPlacement::reset_on_release::<MouseLeft>,
 				Clickable::<MouseRight>::toggle::<TileType>(TileTypeValue::Obstacle),
-				Clickable::<MouseLeft>::switch_on_single::<TileType>(TileTypeValue::Start)
-					.run_if(in_state(PathPlacement::Start)),
-				Clickable::<MouseLeft>::switch_on_single::<TileType>(TileTypeValue::End)
-					.run_if(in_state(PathPlacement::End)),
+				Clickable::<MouseLeft>::switch_on_single::<TileType>(TileTypeValue::Start).run_if(
+					in_state(PathPlacement::Start)
+						.or(in_state(PathPlacement::Drag(Some(TileTypeValue::Start)))),
+				),
+				Clickable::<MouseLeft>::switch_on_single::<TileType>(TileTypeValue::End).run_if(
+					in_state(PathPlacement::End)
+						.or(in_state(PathPlacement::Drag(Some(TileTypeValue::End)))),
+				),
 				TileType::update_color,
-				PathPlacement::toggle_with::<MouseLeft>,
 			)
 				.chain(),
 		);
