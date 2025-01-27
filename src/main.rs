@@ -6,6 +6,7 @@ use project_zyheeda_pathfinding::{
 		clickable::{Clickable, MouseLeft, MouseRight},
 		compute_path_method::{a_star::AStar, ComputePathMethod},
 		computed_path::{ComputedPath, PathNodeConnection},
+		despawn::Despawn,
 		grid_context::GridContext,
 		player_camera::PlayerCamera,
 		tile_collider::TileCollider,
@@ -42,6 +43,7 @@ fn main() -> AppExit {
 				UseAsset::<ColorMaterial>::insert.after(TileType::update_color),
 			),
 		)
+		.add_systems(Update, Despawn::system)
 		.add_systems(
 			Update,
 			(

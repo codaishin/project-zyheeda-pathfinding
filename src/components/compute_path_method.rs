@@ -3,6 +3,7 @@ pub mod straight_line;
 
 use super::{
 	computed_path::ComputedPath,
+	despawn::Despawn,
 	grid_context::GridContext,
 	tile_type::{TileType, TileTypeValue},
 };
@@ -172,10 +173,10 @@ where
 			if parent.get() != entity {
 				continue;
 			}
-			let Some(child) = commands.get_entity(child) else {
+			let Some(mut child) = commands.get_entity(child) else {
 				continue;
 			};
-			child.despawn_recursive();
+			child.try_insert(Despawn::NextFrame);
 		}
 	}
 }
@@ -656,49 +657,18 @@ mod test_compute_path {
 			));
 
 		app.update();
+		let [old_path] = assert_count!(1, app.world().iter_entities().filter(is::<ComputedPath>));
+		let old_path = old_path.id();
 		app.world_mut().spawn((
 			TileType::from_value(TileTypeValue::Start),
 			Transform::from_xyz(7., 8., 9.),
 		));
 		app.update();
 
-		assert_count!(1, app.world().iter_entities().filter(is::<ComputedPath>));
-	}
-
-	#[test]
-	fn override_old_computed_path_after_change_recursively() {
-		#[derive(Component, Debug, PartialEq)]
-		struct _Child;
-
-		let handle = new_handle!(_Grid);
-		let mut app = setup(&handle);
-		app.world_mut()
-			.spawn((
-				GridContext::from_handle(handle),
-				ComputePathMethod::<_Grid, Mock_Method>::new(new_mock!(Mock_Method, |mock| {
-					mock.expect_path().return_const(vec![]);
-				})),
-			))
-			.with_child((
-				TileType::from_value(TileTypeValue::Start),
-				Transform::from_xyz(1., 2., 3.),
-			))
-			.with_child((
-				TileType::from_value(TileTypeValue::End),
-				Transform::from_xyz(4., 5., 6.),
-			));
-
-		app.update();
-		let [path] = assert_count!(1, app.world().iter_entities().filter(is::<ComputedPath>));
-		let path = path.id();
-		let child = app.world_mut().spawn(_Child).set_parent(path).id();
-		app.world_mut().spawn((
-			TileType::from_value(TileTypeValue::Start),
-			Transform::from_xyz(7., 8., 9.),
-		));
-		app.update();
-
-		assert!(app.world().get_entity(child).is_err());
+		assert_eq!(
+			Some(&Despawn::NextFrame),
+			app.world().entity(old_path).get::<Despawn>(),
+		);
 	}
 
 	#[test]
@@ -759,7 +729,8 @@ mod test_compute_path {
 			.insert(TileType::from_value(TileTypeValue::Walkable));
 		app.update();
 
-		assert_count!(0, app.world().iter_entities().filter(is::<ComputedPath>));
+		let [path] = assert_count!(1, app.world().iter_entities().filter(is::<ComputedPath>));
+		assert_eq!(Some(&Despawn::NextFrame), path.get::<Despawn>());
 	}
 
 	#[test]
@@ -794,7 +765,8 @@ mod test_compute_path {
 			.insert(TileType::from_value(TileTypeValue::Walkable));
 		app.update();
 
-		assert_count!(0, app.world().iter_entities().filter(is::<ComputedPath>));
+		let [path] = assert_count!(1, app.world().iter_entities().filter(is::<ComputedPath>));
+		assert_eq!(Some(&Despawn::NextFrame), path.get::<Despawn>());
 	}
 
 	#[test]
@@ -827,7 +799,8 @@ mod test_compute_path {
 		app.world_mut().entity_mut(start).despawn();
 		app.update();
 
-		assert_count!(0, app.world().iter_entities().filter(is::<ComputedPath>));
+		let [path] = assert_count!(1, app.world().iter_entities().filter(is::<ComputedPath>));
+		assert_eq!(Some(&Despawn::NextFrame), path.get::<Despawn>());
 	}
 
 	#[test]
@@ -860,6 +833,7 @@ mod test_compute_path {
 		app.world_mut().entity_mut(end).despawn();
 		app.update();
 
-		assert_count!(0, app.world().iter_entities().filter(is::<ComputedPath>));
+		let [path] = assert_count!(1, app.world().iter_entities().filter(is::<ComputedPath>));
+		assert_eq!(Some(&Despawn::NextFrame), path.get::<Despawn>());
 	}
 }
