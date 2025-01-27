@@ -17,13 +17,13 @@ impl ComputePath for StraightLine {
 		const { true }
 	}
 
-	/// Uses Bresenham's line algorithm.
-	/// Sourced from [Wikipedia](https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm)
 	fn path(&self, start: ComputeGridNode, end: ComputeGridNode) -> Vec<ComputeGridNode> {
 		Line::new(start, end).collect()
 	}
 }
 
+/// Uses Bresenham's line algorithm.
+/// Sourced from [Wikipedia](https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm)
 pub struct Line {
 	new_node: &'static dyn Fn(i32, i32) -> ComputeGridNode,
 	range_high: RangeInclusive<i32>,
