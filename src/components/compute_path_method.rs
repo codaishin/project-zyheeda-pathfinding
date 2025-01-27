@@ -1,5 +1,6 @@
 pub mod a_star;
 pub mod straight_line;
+pub mod theta_star;
 
 use super::{
 	computed_path::ComputedPath,
