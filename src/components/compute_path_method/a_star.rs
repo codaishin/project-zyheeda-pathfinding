@@ -30,7 +30,7 @@ impl AStar {
 			})
 	}
 
-	fn distance(a: &ComputeGridNode, b: &ComputeGridNode) -> u32 {
+	fn distance(a: ComputeGridNode, b: ComputeGridNode) -> u32 {
 		a.x.abs_diff(b.x) + a.y.abs_diff(b.y)
 	}
 }
@@ -47,7 +47,7 @@ impl ComputePath for AStar {
 	}
 
 	fn path(&self, start: ComputeGridNode, end: ComputeGridNode) -> Vec<ComputeGridNode> {
-		let mut open = OpenList::new(start, end);
+		let mut open = OpenList::new(start, end, &Self::distance);
 		let mut closed = ClosedList::new(start);
 		let mut g_scores = GScores::new(start);
 
@@ -61,7 +61,7 @@ impl ComputePath for AStar {
 					continue;
 				}
 
-				let g = g_scores.get(&current) + Self::distance(&current, &neighbor);
+				let g = g_scores.get(&current) + Self::distance(current, neighbor);
 
 				if g >= g_scores.get(&neighbor) {
 					continue;
@@ -77,7 +77,7 @@ impl ComputePath for AStar {
 	}
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default)]
 pub struct ClosedList {
 	start: ComputeGridNode,
 	parents: HashMap<ComputeGridNode, ComputeGridNode>,
@@ -132,17 +132,22 @@ impl Iterator for WalkBack<'_> {
 	}
 }
 
-#[derive(Debug, Default)]
-pub struct OpenList {
+pub struct OpenList<'a> {
 	end: ComputeGridNode,
 	heap: BinaryHeap<Reverse<Node>>,
+	dist_f: &'a dyn Fn(ComputeGridNode, ComputeGridNode) -> u32,
 }
 
-impl OpenList {
-	pub fn new(start: ComputeGridNode, end: ComputeGridNode) -> Self {
-		let f = AStar::distance(&start, &end);
+impl<'a> OpenList<'a> {
+	pub fn new(
+		start: ComputeGridNode,
+		end: ComputeGridNode,
+		dist_f: &'a dyn Fn(ComputeGridNode, ComputeGridNode) -> u32,
+	) -> Self {
+		let f = dist_f(start, end);
 		OpenList {
 			end,
+			dist_f,
 			heap: BinaryHeap::from([Reverse(Node { node: start, f })]),
 		}
 	}
@@ -152,7 +157,7 @@ impl OpenList {
 	}
 
 	pub fn push(&mut self, node: ComputeGridNode, g: u32) {
-		let f = g + AStar::distance(&node, &self.end);
+		let f = g + (self.dist_f)(node, self.end);
 		self.heap.push(Reverse(Node { node, f }));
 	}
 }
