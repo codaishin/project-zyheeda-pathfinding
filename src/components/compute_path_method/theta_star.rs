@@ -9,12 +9,12 @@ use crate::traits::{
 use std::collections::HashSet;
 
 pub struct ThetaStar {
-	sqrt_2: f32,
 	grid: ComputeGrid,
 	obstacles: HashSet<ComputeGridNode>,
 }
 
 impl ThetaStar {
+	const SQRT_2: f32 = 1.4;
 	const PRECISION: f32 = 10.;
 	const NEIGHBORS: &[(i32, i32)] = &[(-1, 0), (0, -1), (0, 1), (1, 0)];
 
@@ -40,7 +40,7 @@ impl ThetaStar {
 			true => (d_x, d_y),
 			false => (d_y, d_x),
 		};
-		((self.sqrt_2 * short + (long - short)) * Self::PRECISION) as u32
+		((Self::SQRT_2 * short + (long - short)) * Self::PRECISION) as u32
 	}
 
 	fn los(&self, a: ComputeGridNode, b: ComputeGridNode) -> bool {
@@ -50,11 +50,7 @@ impl ThetaStar {
 
 impl NewComputer for ThetaStar {
 	fn new(grid: ComputeGrid, obstacles: HashSet<ComputeGridNode>) -> Self {
-		Self {
-			grid,
-			obstacles,
-			sqrt_2: 2_f32.powf(0.5),
-		}
+		Self { grid, obstacles }
 	}
 }
 
