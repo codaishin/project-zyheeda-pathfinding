@@ -1,6 +1,6 @@
 use super::{
 	a_star::{ClosedList, GScores, OpenList},
-	straight_line::Line,
+	straight_line_wide::LineWide,
 };
 use crate::traits::{
 	computable_grid::{ComputeGrid, ComputeGridNode},
@@ -16,16 +16,7 @@ pub struct ThetaStar {
 
 impl ThetaStar {
 	const PRECISION: f32 = 10.;
-	const NEIGHBORS: [(i32, i32); 8] = [
-		(-1, -1),
-		(-1, 0),
-		(-1, 1),
-		(0, -1),
-		(0, 1),
-		(1, -1),
-		(1, 0),
-		(1, 1),
-	];
+	const NEIGHBORS: &[(i32, i32)] = &[(-1, 0), (0, -1), (0, 1), (1, 0)];
 
 	fn neighbors<'a>(
 		&'a self,
@@ -53,7 +44,7 @@ impl ThetaStar {
 	}
 
 	fn los(&self, a: ComputeGridNode, b: ComputeGridNode) -> bool {
-		Line::new(a, b).all(|n| !self.obstacles.contains(&n))
+		LineWide::new(a, b).all(|n| !self.obstacles.contains(&n))
 	}
 }
 
