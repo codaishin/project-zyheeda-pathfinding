@@ -16,7 +16,16 @@ pub struct ThetaStar {
 impl ThetaStar {
 	const SQRT_2: f32 = 1.4;
 	const PRECISION: f32 = 1000.;
-	const NEIGHBORS: &[(i32, i32)] = &[(-1, 0), (0, -1), (0, 1), (1, 0)];
+	const NEIGHBORS: &[(i32, i32)] = &[
+		(-1, -1),
+		(-1, 0),
+		(-1, 1),
+		(0, -1),
+		(0, 1),
+		(1, -1),
+		(1, 0),
+		(1, 1),
+	];
 
 	fn neighbors<'a>(
 		&'a self,
@@ -72,6 +81,9 @@ impl ComputePath for ThetaStar {
 
 			for neighbor in self.neighbors(&current) {
 				if self.obstacles.contains(&neighbor) {
+					continue;
+				}
+				if !self.los(current, neighbor) {
 					continue;
 				}
 
