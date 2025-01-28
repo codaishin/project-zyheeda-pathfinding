@@ -30,8 +30,8 @@ impl AStar {
 			})
 	}
 
-	fn distance(a: &ComputeGridNode, b: &ComputeGridNode) -> u32 {
-		a.x.abs_diff(b.x) + a.y.abs_diff(b.y)
+	fn distance(a: ComputeGridNode, b: ComputeGridNode) -> f32 {
+		(a.x.abs_diff(b.x) + a.y.abs_diff(b.y)) as f32
 	}
 }
 
@@ -47,8 +47,8 @@ impl ComputePath for AStar {
 	}
 
 	fn path(&self, start: ComputeGridNode, end: ComputeGridNode) -> Vec<ComputeGridNode> {
-		let mut open = OpenList::new(start, end);
-		let mut closed = ClosedList::default();
+		let mut open = OpenList::new(start, end, &Self::distance);
+		let mut closed = ClosedList::new(start);
 		let mut g_scores = GScores::new(start);
 
 		while let Some(current) = open.pop_lowest_f() {
@@ -61,7 +61,7 @@ impl ComputePath for AStar {
 					continue;
 				}
 
-				let g = g_scores.get(&current) + Self::distance(&current, &neighbor);
+				let g = g_scores.get(&current) + Self::distance(current, neighbor);
 
 				if g >= g_scores.get(&neighbor) {
 					continue;
@@ -77,27 +77,43 @@ impl ComputePath for AStar {
 	}
 }
 
-#[derive(Debug, PartialEq, Default)]
-struct ClosedList(HashMap<ComputeGridNode, ComputeGridNode>);
+#[derive(Debug, Default)]
+pub struct ClosedList {
+	start: ComputeGridNode,
+	parents: HashMap<ComputeGridNode, ComputeGridNode>,
+}
 
 impl ClosedList {
-	fn insert(&mut self, node: ComputeGridNode, comes_from: ComputeGridNode) {
-		self.0.insert(node, comes_from);
+	pub fn new(start: ComputeGridNode) -> Self {
+		Self {
+			start,
+			parents: HashMap::from([(start, start)]),
+		}
 	}
 
-	fn walk_back_from<'a>(
+	pub fn insert(&mut self, node: ComputeGridNode, comes_from: ComputeGridNode) {
+		self.parents.insert(node, comes_from);
+	}
+
+	pub fn walk_back_from<'a>(
 		&'a self,
 		node: &'a ComputeGridNode,
 	) -> impl Iterator<Item = ComputeGridNode> + 'a {
 		WalkBack {
 			current: Some(node),
-			connections: &self.0,
+			start: self.start,
+			parents: &self.parents,
 		}
+	}
+
+	pub fn parent(&self, node: &ComputeGridNode) -> Option<&ComputeGridNode> {
+		self.parents.get(node)
 	}
 }
 
 struct WalkBack<'a> {
-	connections: &'a HashMap<ComputeGridNode, ComputeGridNode>,
+	start: ComputeGridNode,
+	parents: &'a HashMap<ComputeGridNode, ComputeGridNode>,
 	current: Option<&'a ComputeGridNode>,
 }
 
@@ -106,42 +122,53 @@ impl Iterator for WalkBack<'_> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let next = self.current?;
-		self.current = self.connections.get(next);
+
+		self.current = match next == &self.start {
+			true => None,
+			false => self.parents.get(next),
+		};
 
 		Some(*next)
 	}
 }
 
-#[derive(Debug, Default)]
-struct OpenList {
+pub struct OpenList<'a> {
 	end: ComputeGridNode,
 	heap: BinaryHeap<Reverse<Node>>,
+	dist_f: &'a dyn Fn(ComputeGridNode, ComputeGridNode) -> f32,
 }
 
-impl OpenList {
-	fn new(start: ComputeGridNode, end: ComputeGridNode) -> Self {
-		let f = AStar::distance(&start, &end);
+impl<'a> OpenList<'a> {
+	pub fn new(
+		start: ComputeGridNode,
+		end: ComputeGridNode,
+		dist_f: &'a dyn Fn(ComputeGridNode, ComputeGridNode) -> f32,
+	) -> Self {
+		let f = dist_f(start, end);
 		OpenList {
 			end,
+			dist_f,
 			heap: BinaryHeap::from([Reverse(Node { node: start, f })]),
 		}
 	}
 
-	fn pop_lowest_f(&mut self) -> Option<ComputeGridNode> {
+	pub fn pop_lowest_f(&mut self) -> Option<ComputeGridNode> {
 		self.heap.pop().map(|Reverse(Node { node, .. })| node)
 	}
 
-	fn push(&mut self, node: ComputeGridNode, g: u32) {
-		let f = g + AStar::distance(&node, &self.end);
+	pub fn push(&mut self, node: ComputeGridNode, g: f32) {
+		let f = g + (self.dist_f)(node, self.end);
 		self.heap.push(Reverse(Node { node, f }));
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq)]
 struct Node {
 	node: ComputeGridNode,
-	f: u32,
+	f: f32,
 }
+
+impl Eq for Node {}
 
 impl PartialOrd for Node {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -151,24 +178,28 @@ impl PartialOrd for Node {
 
 impl Ord for Node {
 	fn cmp(&self, other: &Self) -> Ordering {
-		self.f
-			.cmp(&other.f)
-			.then_with(|| self.node.cmp(&other.node))
+		let Some(c_f) = self.f.partial_cmp(&other.f) else {
+			panic!(
+				"tried to compare {:?} with {:?} (f values are not comparable)",
+				self, other
+			);
+		};
+		c_f.then_with(|| self.node.cmp(&other.node))
 	}
 }
 
-struct GScores(HashMap<ComputeGridNode, u32>);
+pub struct GScores(HashMap<ComputeGridNode, f32>);
 
 impl GScores {
-	fn new(start: ComputeGridNode) -> Self {
-		Self(HashMap::from([(start, 0)]))
+	pub fn new(start: ComputeGridNode) -> Self {
+		Self(HashMap::from([(start, 0.)]))
 	}
 
-	fn insert(&mut self, node: ComputeGridNode, score: u32) {
+	pub fn insert(&mut self, node: ComputeGridNode, score: f32) {
 		self.0.insert(node, score);
 	}
 
-	fn get(&self, node: &ComputeGridNode) -> u32 {
-		self.0.get(node).cloned().unwrap_or(u32::MAX)
+	pub fn get(&self, node: &ComputeGridNode) -> f32 {
+		self.0.get(node).cloned().unwrap_or(f32::INFINITY)
 	}
 }
