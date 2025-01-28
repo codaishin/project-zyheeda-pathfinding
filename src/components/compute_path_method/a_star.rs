@@ -30,8 +30,8 @@ impl AStar {
 			})
 	}
 
-	fn distance(a: ComputeGridNode, b: ComputeGridNode) -> u32 {
-		a.x.abs_diff(b.x) + a.y.abs_diff(b.y)
+	fn distance(a: ComputeGridNode, b: ComputeGridNode) -> f32 {
+		(a.x.abs_diff(b.x) + a.y.abs_diff(b.y)) as f32
 	}
 }
 
@@ -135,14 +135,14 @@ impl Iterator for WalkBack<'_> {
 pub struct OpenList<'a> {
 	end: ComputeGridNode,
 	heap: BinaryHeap<Reverse<Node>>,
-	dist_f: &'a dyn Fn(ComputeGridNode, ComputeGridNode) -> u32,
+	dist_f: &'a dyn Fn(ComputeGridNode, ComputeGridNode) -> f32,
 }
 
 impl<'a> OpenList<'a> {
 	pub fn new(
 		start: ComputeGridNode,
 		end: ComputeGridNode,
-		dist_f: &'a dyn Fn(ComputeGridNode, ComputeGridNode) -> u32,
+		dist_f: &'a dyn Fn(ComputeGridNode, ComputeGridNode) -> f32,
 	) -> Self {
 		let f = dist_f(start, end);
 		OpenList {
@@ -156,17 +156,19 @@ impl<'a> OpenList<'a> {
 		self.heap.pop().map(|Reverse(Node { node, .. })| node)
 	}
 
-	pub fn push(&mut self, node: ComputeGridNode, g: u32) {
+	pub fn push(&mut self, node: ComputeGridNode, g: f32) {
 		let f = g + (self.dist_f)(node, self.end);
 		self.heap.push(Reverse(Node { node, f }));
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq)]
 struct Node {
 	node: ComputeGridNode,
-	f: u32,
+	f: f32,
 }
+
+impl Eq for Node {}
 
 impl PartialOrd for Node {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -176,24 +178,28 @@ impl PartialOrd for Node {
 
 impl Ord for Node {
 	fn cmp(&self, other: &Self) -> Ordering {
-		self.f
-			.cmp(&other.f)
-			.then_with(|| self.node.cmp(&other.node))
+		let Some(c_f) = self.f.partial_cmp(&other.f) else {
+			panic!(
+				"tried to compare {:?} with {:?} (f values are not comparable)",
+				self, other
+			);
+		};
+		c_f.then_with(|| self.node.cmp(&other.node))
 	}
 }
 
-pub struct GScores(HashMap<ComputeGridNode, u32>);
+pub struct GScores(HashMap<ComputeGridNode, f32>);
 
 impl GScores {
 	pub fn new(start: ComputeGridNode) -> Self {
-		Self(HashMap::from([(start, 0)]))
+		Self(HashMap::from([(start, 0.)]))
 	}
 
-	pub fn insert(&mut self, node: ComputeGridNode, score: u32) {
+	pub fn insert(&mut self, node: ComputeGridNode, score: f32) {
 		self.0.insert(node, score);
 	}
 
-	pub fn get(&self, node: &ComputeGridNode) -> u32 {
-		self.0.get(node).cloned().unwrap_or(u32::MAX)
+	pub fn get(&self, node: &ComputeGridNode) -> f32 {
+		self.0.get(node).cloned().unwrap_or(f32::INFINITY)
 	}
 }

@@ -9,13 +9,12 @@ use crate::traits::{
 use std::collections::HashSet;
 
 pub struct ThetaStar {
+	sqrt_2: f32,
 	grid: ComputeGrid,
 	obstacles: HashSet<ComputeGridNode>,
 }
 
 impl ThetaStar {
-	const SQRT_2: f32 = 1.4;
-	const PRECISION: f32 = 10.;
 	const NEIGHBORS: &[(i32, i32)] = &[
 		(-1, -1),
 		(-1, 0),
@@ -42,14 +41,14 @@ impl ThetaStar {
 			})
 	}
 
-	fn distance(&self, a: ComputeGridNode, b: ComputeGridNode) -> u32 {
+	fn distance(&self, a: ComputeGridNode, b: ComputeGridNode) -> f32 {
 		let d_x = a.x.abs_diff(b.x) as f32;
 		let d_y = a.y.abs_diff(b.y) as f32;
 		let (long, short) = match d_x > d_y {
 			true => (d_x, d_y),
 			false => (d_y, d_x),
 		};
-		((Self::SQRT_2 * short + (long - short)) * Self::PRECISION) as u32
+		self.sqrt_2 * short + (long - short)
 	}
 
 	fn los(&self, a: ComputeGridNode, b: ComputeGridNode) -> bool {
@@ -62,7 +61,7 @@ impl ThetaStar {
 		g_scores: &GScores,
 		current: ComputeGridNode,
 		neighbor: ComputeGridNode,
-	) -> Option<(ComputeGridNode, u32)> {
+	) -> Option<(ComputeGridNode, f32)> {
 		match closed.parent(&current) {
 			Some(parent) if self.los(*parent, neighbor) => self.relax(g_scores, *parent, neighbor),
 			_ if self.los(current, neighbor) => self.relax(g_scores, current, neighbor),
@@ -75,7 +74,7 @@ impl ThetaStar {
 		g_scores: &GScores,
 		current: ComputeGridNode,
 		neighbor: ComputeGridNode,
-	) -> Option<(ComputeGridNode, u32)> {
+	) -> Option<(ComputeGridNode, f32)> {
 		let g = g_scores.get(&current) + self.distance(current, neighbor);
 
 		if g >= g_scores.get(&neighbor) {
@@ -88,7 +87,11 @@ impl ThetaStar {
 
 impl NewComputer for ThetaStar {
 	fn new(grid: ComputeGrid, obstacles: HashSet<ComputeGridNode>) -> Self {
-		Self { grid, obstacles }
+		Self {
+			grid,
+			obstacles,
+			sqrt_2: 2_f32.sqrt(),
+		}
 	}
 }
 
