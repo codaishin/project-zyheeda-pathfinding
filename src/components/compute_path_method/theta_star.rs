@@ -15,7 +15,7 @@ pub struct ThetaStar {
 
 impl ThetaStar {
 	const SQRT_2: f32 = 1.4;
-	const PRECISION: f32 = 1000.;
+	const PRECISION: f32 = 10.;
 	const NEIGHBORS: &[(i32, i32)] = &[
 		(-1, -1),
 		(-1, 0),
@@ -55,6 +55,35 @@ impl ThetaStar {
 	fn los(&self, a: ComputeGridNode, b: ComputeGridNode) -> bool {
 		LineWide::new(a, b).all(|n| !self.obstacles.contains(&n))
 	}
+
+	fn vertex(
+		&self,
+		closed: &ClosedList,
+		g_scores: &GScores,
+		current: ComputeGridNode,
+		neighbor: ComputeGridNode,
+	) -> Option<(ComputeGridNode, u32)> {
+		match closed.parent(&current) {
+			Some(parent) if self.los(*parent, neighbor) => self.relax(g_scores, *parent, neighbor),
+			_ if self.los(current, neighbor) => self.relax(g_scores, current, neighbor),
+			_ => None,
+		}
+	}
+
+	fn relax(
+		&self,
+		g_scores: &GScores,
+		current: ComputeGridNode,
+		neighbor: ComputeGridNode,
+	) -> Option<(ComputeGridNode, u32)> {
+		let g = g_scores.get(&current) + self.distance(current, neighbor);
+
+		if g >= g_scores.get(&neighbor) {
+			return None;
+		}
+
+		Some((current, g))
+	}
 }
 
 impl NewComputer for ThetaStar {
@@ -83,31 +112,14 @@ impl ComputePath for ThetaStar {
 				if self.obstacles.contains(&neighbor) {
 					continue;
 				}
-				if !self.los(current, neighbor) {
+
+				let Some((current, g)) = self.vertex(&closed, &g_scores, current, neighbor) else {
 					continue;
-				}
-
-				let g_neighbor = g_scores.get(&current) + self.distance(current, neighbor);
-
-				if g_neighbor >= g_scores.get(&neighbor) {
-					continue;
-				}
-
-				let (current, g_neighbor) = match closed.parent(&current) {
-					Some(parent) if self.los(*parent, neighbor) => {
-						let g_parent = g_scores.get(parent) + self.distance(*parent, neighbor);
-						if g_parent <= g_neighbor {
-							(*parent, g_parent)
-						} else {
-							(current, g_neighbor)
-						}
-					}
-					_ => (current, g_neighbor),
 				};
 
-				open.push(neighbor, g_neighbor);
+				open.push(neighbor, g);
 				closed.insert(neighbor, current);
-				g_scores.insert(neighbor, g_neighbor);
+				g_scores.insert(neighbor, g);
 			}
 		}
 
