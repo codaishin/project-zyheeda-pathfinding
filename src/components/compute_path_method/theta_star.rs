@@ -15,7 +15,7 @@ pub struct ThetaStar {
 
 impl ThetaStar {
 	const SQRT_2: f32 = 1.4;
-	const PRECISION: f32 = 10.;
+	const PRECISION: f32 = 1000.;
 	const NEIGHBORS: &[(i32, i32)] = &[(-1, 0), (0, -1), (0, 1), (1, 0)];
 
 	fn neighbors<'a>(
