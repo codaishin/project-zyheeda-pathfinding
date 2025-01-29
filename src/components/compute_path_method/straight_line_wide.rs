@@ -45,35 +45,19 @@ impl LineWide {
 			0 => Orientation::Straight { v_low: low.0 },
 			_ => {
 				let d_high = high.1 - high.0;
-				let d_low_sub = d_low - 1;
-				let d_high_sub = d_high - 1;
-				let main = Step {
+				let step = Step {
 					d: (2 * d_low) - d_high,
-					v_low: low.0,
+					v_lows: [low.0; 2],
 					d_up: 2 * d_low,
 					d_down: 2 * (d_low - d_high),
-				};
-				let top = Step {
-					d: (2 * d_low_sub) - d_high_sub,
-					v_low: low.0 + i_low,
-					d_up: 2 * d_low_sub,
-					d_down: 2 * (d_low_sub - d_high_sub),
-				};
-				let btm = Step {
-					d: top.d,
-					v_low: low.0,
-					d_up: top.d_up,
-					d_down: top.d_down,
 				};
 
 				Orientation::Odd(Line {
 					i_low,
-					start: high.0,
-					end: high.1,
-					main,
-					top,
-					btm,
-					additional_nodes: [None, None],
+					low_start: low.0,
+					low_end: low.1,
+					step,
+					additional_nodes: [None; 3],
 				})
 			}
 		};
@@ -109,35 +93,36 @@ impl Iterator for LineWide {
 				let node = (self.new_node)(*v_low, v_high);
 				Some(node)
 			}
-			Orientation::Odd(line) => {
-				match &mut line.additional_nodes {
-					[node, _] if node.is_some() => return node.take(),
-					[_, node] if node.is_some() => return node.take(),
-					_ => {}
-				}
+			Orientation::Odd(line) => match &mut line.additional_nodes {
+				[node, _, _] if node.is_some() => node.take(),
+				[_, node, _] if node.is_some() => node.take(),
+				[_, _, node] if node.is_some() => node.take(),
+				_ => {
+					let high = self.range.next()?;
+					let low_0 = line.step.v_lows[0];
+					let low_1 = line.step.v_lows[1];
+					let is_doubled = low_0 != low_1;
+					let add_border = !is_doubled || line.step.steps_fast();
 
-				let v_high = self.range.next()?;
-				let node = (self.new_node)(line.main.v_low, v_high);
-				line.main.step(line.i_low);
+					let node = (self.new_node)(low_0, high);
 
-				if v_high != line.end {
-					let node_top = (self.new_node)(line.top.v_low, v_high);
-					line.top.step_early(line.i_low);
-					if node_top != node {
-						line.additional_nodes[1] = Some(node_top);
+					if add_border && low_0 != line.low_start {
+						line.additional_nodes[0] = Some((self.new_node)(low_0 - line.i_low, high));
 					}
-				}
 
-				if v_high != line.start {
-					let node_btm = (self.new_node)(line.btm.v_low, v_high);
-					line.btm.step(line.i_low);
-					if node_btm != node {
-						line.additional_nodes[0] = Some(node_btm);
+					if is_doubled {
+						line.additional_nodes[1] = Some((self.new_node)(low_1, high));
 					}
-				}
 
-				Some(node)
-			}
+					if add_border && low_1 != line.low_end {
+						line.additional_nodes[2] = Some((self.new_node)(low_1 + line.i_low, high));
+					}
+
+					line.step.step(line.i_low);
+
+					Some(node)
+				}
+			},
 		}
 	}
 }
@@ -149,12 +134,10 @@ enum Orientation {
 
 struct Line {
 	i_low: i32,
-	start: i32,
-	end: i32,
-	main: Step,
-	top: Step,
-	btm: Step,
-	additional_nodes: [Option<ComputeGridNode>; 2],
+	low_start: i32,
+	low_end: i32,
+	step: Step,
+	additional_nodes: [Option<ComputeGridNode>; 3],
 }
 
 type NewNodeFn = fn(i32, i32) -> ComputeGridNode;
@@ -178,29 +161,30 @@ impl High {
 #[derive(Debug, PartialEq)]
 struct Step {
 	d: i32,
-	v_low: i32,
+	v_lows: [i32; 2],
 	d_up: i32,
 	d_down: i32,
 }
 
 impl Step {
 	fn step(&mut self, i_low: i32) {
-		if self.d <= 0 {
-			self.d += self.d_up;
-			return;
-		}
-
-		self.v_low += i_low;
-		self.d += self.d_down;
-	}
-
-	fn step_early(&mut self, i_low: i32) {
 		if self.d < 0 {
 			self.d += self.d_up;
 			return;
 		}
 
-		self.v_low += i_low;
+		if self.d == 0 {
+			self.d += self.d_up;
+			self.v_lows[1] += i_low;
+			return;
+		}
+
+		self.v_lows[0] += i_low;
+		self.v_lows[1] = self.v_lows[0];
 		self.d += self.d_down;
+	}
+
+	fn steps_fast(&self) -> bool {
+		self.d_down.abs() < self.d_up
 	}
 }

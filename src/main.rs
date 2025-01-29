@@ -4,7 +4,7 @@ use project_zyheeda_pathfinding::{
 	assets::{collider_definition::ColliderDefinition, grid::Grid},
 	components::{
 		clickable::{Clickable, MouseLeft, MouseRight},
-		compute_path_method::{theta_star::ThetaStar, ComputePathMethod},
+		compute_path_method::{straight_line_wide::StraightLineWide, ComputePathMethod},
 		computed_path::{ComputedPath, PathNodeConnection},
 		despawn::Despawn,
 		grid_context::GridContext,
@@ -49,8 +49,8 @@ fn main() -> AppExit {
 			(
 				GridContext::<Grid>::spawn_tiles,
 				GridContext::<Grid>::track_obstacles,
-				ComputePathMethod::<Grid, ThetaStar>::instantiate,
-				ComputePathMethod::<Grid, ThetaStar>::compute_path,
+				ComputePathMethod::<Grid, StraightLineWide>::instantiate,
+				ComputePathMethod::<Grid, StraightLineWide>::compute_path,
 				ComputedPath::draw,
 				PathNodeConnection::draw,
 			)
