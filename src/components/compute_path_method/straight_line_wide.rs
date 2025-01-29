@@ -54,8 +54,8 @@ impl LineWide {
 
 				Orientation::Odd(Line {
 					i_low,
-					d_low_start: low.0,
-					d_low_end: low.1,
+					low_start: low.0,
+					low_end: low.1,
 					step,
 					additional_nodes: [None; 3],
 				})
@@ -101,18 +101,20 @@ impl Iterator for LineWide {
 					let high = self.range.next()?;
 					let low_0 = line.step.v_lows[0];
 					let low_1 = line.step.v_lows[1];
+					let is_doubled = low_0 != low_1;
+					let add_border = !is_doubled || line.step.steps_fast();
 
 					let node = (self.new_node)(low_0, high);
 
-					if low_0 != line.d_low_start {
+					if add_border && low_0 != line.low_start {
 						line.additional_nodes[0] = Some((self.new_node)(low_0 - line.i_low, high));
 					}
 
-					if low_0 != low_1 {
+					if is_doubled {
 						line.additional_nodes[1] = Some((self.new_node)(low_1, high));
 					}
 
-					if low_1 != line.d_low_end {
+					if add_border && low_1 != line.low_end {
 						line.additional_nodes[2] = Some((self.new_node)(low_1 + line.i_low, high));
 					}
 
@@ -132,8 +134,8 @@ enum Orientation {
 
 struct Line {
 	i_low: i32,
-	d_low_start: i32,
-	d_low_end: i32,
+	low_start: i32,
+	low_end: i32,
 	step: Step,
 	additional_nodes: [Option<ComputeGridNode>; 3],
 }
@@ -180,5 +182,9 @@ impl Step {
 		self.v_lows[0] += i_low;
 		self.v_lows[1] = self.v_lows[0];
 		self.d += self.d_down;
+	}
+
+	fn steps_fast(&self) -> bool {
+		self.d_down.abs() < self.d_up
 	}
 }
