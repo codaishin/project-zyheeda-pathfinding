@@ -53,7 +53,7 @@ impl ComputePath for AStar {
 
 		while let Some(current) = open.pop_lowest_f() {
 			if current == end {
-				return closed.walk_back_from(&current).collect();
+				return closed.construct_path_from(current).collect();
 			}
 
 			for neighbor in self.neighbors(&current) {
@@ -95,14 +95,11 @@ impl ClosedList {
 		self.parents.insert(node, comes_from);
 	}
 
-	pub fn walk_back_from<'a>(
-		&'a self,
-		node: &'a ComputeGridNode,
-	) -> impl Iterator<Item = ComputeGridNode> + 'a {
-		WalkBack {
+	pub fn construct_path_from(self, node: ComputeGridNode) -> PathIterator {
+		PathIterator {
 			current: Some(node),
 			start: self.start,
-			parents: &self.parents,
+			list: self,
 		}
 	}
 
@@ -111,24 +108,24 @@ impl ClosedList {
 	}
 }
 
-struct WalkBack<'a> {
+pub struct PathIterator {
 	start: ComputeGridNode,
-	parents: &'a HashMap<ComputeGridNode, ComputeGridNode>,
-	current: Option<&'a ComputeGridNode>,
+	list: ClosedList,
+	current: Option<ComputeGridNode>,
 }
 
-impl Iterator for WalkBack<'_> {
+impl Iterator for PathIterator {
 	type Item = ComputeGridNode;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let next = self.current?;
 
-		self.current = match next == &self.start {
+		self.current = match next == self.start {
 			true => None,
-			false => self.parents.get(next),
+			false => self.list.parent(&next).cloned(),
 		};
 
-		Some(*next)
+		Some(next)
 	}
 }
 

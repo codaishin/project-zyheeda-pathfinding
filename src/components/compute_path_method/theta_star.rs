@@ -108,7 +108,7 @@ impl ComputePath for ThetaStar {
 
 		while let Some(current) = open.pop_lowest_f() {
 			if current == end {
-				return closed.walk_back_from(&current).collect();
+				return closed.construct_path_from(current).collect();
 			}
 
 			for neighbor in self.neighbors(&current) {
