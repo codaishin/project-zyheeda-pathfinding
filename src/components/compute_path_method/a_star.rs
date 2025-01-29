@@ -97,7 +97,7 @@ impl ClosedList {
 
 	pub fn construct_path_from(self, node: ComputeGridNode) -> PathIterator {
 		PathIterator {
-			current: Some(node),
+			next: Some(node),
 			start: self.start,
 			list: self,
 		}
@@ -111,21 +111,72 @@ impl ClosedList {
 pub struct PathIterator {
 	start: ComputeGridNode,
 	list: ClosedList,
-	current: Option<ComputeGridNode>,
+	next: Option<ComputeGridNode>,
+}
+
+impl PathIterator {
+	pub fn remove_redundant_nodes<T>(self, line_of_sight: T) -> CleanedPathIterator<T>
+	where
+		T: Fn(ComputeGridNode, ComputeGridNode) -> bool,
+	{
+		CleanedPathIterator {
+			los: line_of_sight,
+			start: self.start,
+			list: self.list,
+			next: self.next,
+		}
+	}
 }
 
 impl Iterator for PathIterator {
 	type Item = ComputeGridNode;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		let next = self.current?;
+		let current = self.next?;
 
-		self.current = match next == self.start {
+		self.next = match current == self.start {
 			true => None,
-			false => self.list.parent(&next).cloned(),
+			false => self.list.parent(&current).copied(),
 		};
 
-		Some(next)
+		Some(current)
+	}
+}
+
+pub struct CleanedPathIterator<T>
+where
+	T: Fn(ComputeGridNode, ComputeGridNode) -> bool,
+{
+	los: T,
+	start: ComputeGridNode,
+	list: ClosedList,
+	next: Option<ComputeGridNode>,
+}
+
+impl<T> Iterator for CleanedPathIterator<T>
+where
+	T: Fn(ComputeGridNode, ComputeGridNode) -> bool,
+{
+	type Item = ComputeGridNode;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		let current = self.next?;
+
+		self.next = match current == self.start {
+			true => None,
+			false => {
+				let parent = self.list.parent(&current).copied()?;
+				let parent_parent = self.list.parent(&parent).copied()?;
+
+				if (self.los)(current, parent_parent) {
+					Some(parent_parent)
+				} else {
+					Some(parent)
+				}
+			}
+		};
+
+		Some(current)
 	}
 }
 

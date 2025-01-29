@@ -102,13 +102,17 @@ impl ComputePath for ThetaStar {
 
 	fn path(&self, start: ComputeGridNode, end: ComputeGridNode) -> Vec<ComputeGridNode> {
 		let dist_f = |a, b| self.distance(a, b);
+		let los_f = |a, b| self.los(a, b);
 		let mut open = OpenList::new(start, end, &dist_f);
 		let mut closed = ClosedList::new(start);
 		let mut g_scores = GScores::new(start);
 
 		while let Some(current) = open.pop_lowest_f() {
 			if current == end {
-				return closed.construct_path_from(current).collect();
+				return closed
+					.construct_path_from(current)
+					.remove_redundant_nodes(los_f)
+					.collect();
 			}
 
 			for neighbor in self.neighbors(&current) {
