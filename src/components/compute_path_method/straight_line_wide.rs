@@ -45,34 +45,16 @@ impl LineWide {
 			0 => Orientation::Straight { v_low: low.0 },
 			_ => {
 				let d_high = high.1 - high.0;
-				let d_low_sub = d_low - 1;
-				let d_high_sub = d_high - 1;
-				let main = Step {
+				let step = Step {
 					d: (2 * d_low) - d_high,
-					v_low: low.0,
+					v_lows: [low.0; 2],
 					d_up: 2 * d_low,
 					d_down: 2 * (d_low - d_high),
-				};
-				let top = Step {
-					d: (2 * d_low_sub) - d_high_sub,
-					v_low: low.0 + i_low,
-					d_up: 2 * d_low_sub,
-					d_down: 2 * (d_low_sub - d_high_sub),
-				};
-				let btm = Step {
-					d: top.d,
-					v_low: low.0,
-					d_up: top.d_up,
-					d_down: top.d_down,
 				};
 
 				Orientation::Odd(Line {
 					i_low,
-					start: high.0,
-					end: high.1,
-					main,
-					top,
-					btm,
+					step,
 					additional_nodes: [None, None],
 				})
 			}
@@ -117,24 +99,13 @@ impl Iterator for LineWide {
 				}
 
 				let v_high = self.range.next()?;
-				let node = (self.new_node)(line.main.v_low, v_high);
-				line.main.step(line.i_low);
+				let node = (self.new_node)(line.step.v_lows[0], v_high);
 
-				if v_high != line.end {
-					let node_top = (self.new_node)(line.top.v_low, v_high);
-					line.top.step_early(line.i_low);
-					if node_top != node {
-						line.additional_nodes[1] = Some(node_top);
-					}
+				if line.step.v_lows[0] != line.step.v_lows[1] {
+					line.additional_nodes[0] = Some((self.new_node)(line.step.v_lows[1], v_high));
 				}
 
-				if v_high != line.start {
-					let node_btm = (self.new_node)(line.btm.v_low, v_high);
-					line.btm.step(line.i_low);
-					if node_btm != node {
-						line.additional_nodes[0] = Some(node_btm);
-					}
-				}
+				line.step.step(line.i_low);
 
 				Some(node)
 			}
@@ -149,11 +120,7 @@ enum Orientation {
 
 struct Line {
 	i_low: i32,
-	start: i32,
-	end: i32,
-	main: Step,
-	top: Step,
-	btm: Step,
+	step: Step,
 	additional_nodes: [Option<ComputeGridNode>; 2],
 }
 
@@ -178,29 +145,26 @@ impl High {
 #[derive(Debug, PartialEq)]
 struct Step {
 	d: i32,
-	v_low: i32,
+	v_lows: [i32; 2],
 	d_up: i32,
 	d_down: i32,
 }
 
 impl Step {
 	fn step(&mut self, i_low: i32) {
-		if self.d <= 0 {
-			self.d += self.d_up;
-			return;
-		}
-
-		self.v_low += i_low;
-		self.d += self.d_down;
-	}
-
-	fn step_early(&mut self, i_low: i32) {
 		if self.d < 0 {
 			self.d += self.d_up;
 			return;
 		}
 
-		self.v_low += i_low;
+		if self.d == 0 {
+			self.d += self.d_up;
+			self.v_lows[1] += i_low;
+			return;
+		}
+
+		self.v_lows[0] += i_low;
+		self.v_lows[1] = self.v_lows[0];
 		self.d += self.d_down;
 	}
 }
