@@ -121,9 +121,7 @@ impl PathIterator {
 	{
 		CleanedPathIterator {
 			los: line_of_sight,
-			start: self.start,
-			list: self.list,
-			next: self.next,
+			iterator: self,
 		}
 	}
 }
@@ -148,9 +146,7 @@ where
 	T: Fn(ComputeGridNode, ComputeGridNode) -> bool,
 {
 	los: T,
-	start: ComputeGridNode,
-	list: ClosedList,
-	next: Option<ComputeGridNode>,
+	iterator: PathIterator,
 }
 
 impl<T> Iterator for CleanedPathIterator<T>
@@ -160,19 +156,27 @@ where
 	type Item = ComputeGridNode;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		let current = self.next?;
+		let current = self.iterator.next?;
 
-		self.next = match current == self.start {
+		self.iterator.next = match current == self.iterator.start {
 			true => None,
 			false => {
-				let parent = self.list.parent(&current).copied()?;
-				let parent_parent = self.list.parent(&parent).copied()?;
+				let mut explored = *self.iterator.list.parent(&current)?;
+				let mut last_visible = explored;
 
-				if (self.los)(current, parent_parent) {
-					Some(parent_parent)
-				} else {
-					Some(parent)
+				while let Some(parent) = self.iterator.list.parent(&explored) {
+					if (self.los)(current, *parent) {
+						last_visible = *parent;
+					}
+
+					explored = *parent;
+
+					if parent == &self.iterator.list.start {
+						break;
+					}
 				}
+
+				Some(last_visible)
 			}
 		};
 
