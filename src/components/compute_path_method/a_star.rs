@@ -77,7 +77,7 @@ impl ComputePath for AStar {
 	}
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ClosedList {
 	start: ComputeGridNode,
 	parents: HashMap<ComputeGridNode, ComputeGridNode>,
@@ -108,6 +108,7 @@ impl ClosedList {
 	}
 }
 
+#[derive(Debug, Clone)]
 pub struct PathIterator {
 	start: ComputeGridNode,
 	list: ClosedList,
@@ -117,7 +118,7 @@ pub struct PathIterator {
 impl PathIterator {
 	pub fn remove_redundant_nodes<T>(self, line_of_sight: T) -> CleanedPathIterator<T>
 	where
-		T: Fn(ComputeGridNode, ComputeGridNode) -> bool,
+		T: Fn(ComputeGridNode, ComputeGridNode) -> bool + Clone,
 	{
 		CleanedPathIterator {
 			los: line_of_sight,
@@ -141,17 +142,79 @@ impl Iterator for PathIterator {
 	}
 }
 
+#[derive(Debug, Clone)]
 pub struct CleanedPathIterator<T>
 where
-	T: Fn(ComputeGridNode, ComputeGridNode) -> bool,
+	T: Fn(ComputeGridNode, ComputeGridNode) -> bool + Clone,
 {
 	los: T,
 	iterator: PathIterator,
 }
 
+impl<T> CleanedPathIterator<T>
+where
+	T: Fn(ComputeGridNode, ComputeGridNode) -> bool + Clone,
+{
+	fn try_move_closer_to(
+		node: &mut ComputeGridNode,
+		target: &ComputeGridNode,
+		other_los_node: &ComputeGridNode,
+		los: &impl Fn(ComputeGridNode, ComputeGridNode) -> bool,
+	) {
+		let Some(direction) = node.eight_sided_direction_to(target) else {
+			return;
+		};
+
+		loop {
+			let moved = *node + direction;
+
+			if &moved == target {
+				return;
+			}
+			if !los(moved, *target) {
+				return;
+			}
+			if !los(moved, *other_los_node) {
+				return;
+			}
+
+			*node = moved;
+		}
+	}
+
+	pub fn collect_with_optimized_node_positions(self) -> Vec<ComputeGridNode> {
+		let los = &self.los.clone();
+
+		// need to apply node cleanup first
+		let path = &self.collect::<Vec<_>>();
+
+		path.iter()
+			.enumerate()
+			.map(move |(i, node)| {
+				let mut node = *node;
+
+				if i == 0 {
+					return node;
+				}
+				let Some(last) = path.get(i - 1) else {
+					return node;
+				};
+				let Some(next) = path.get(i + 1) else {
+					return node;
+				};
+
+				Self::try_move_closer_to(&mut node, last, next, los);
+				Self::try_move_closer_to(&mut node, next, last, los);
+
+				node
+			})
+			.collect()
+	}
+}
+
 impl<T> Iterator for CleanedPathIterator<T>
 where
-	T: Fn(ComputeGridNode, ComputeGridNode) -> bool,
+	T: Fn(ComputeGridNode, ComputeGridNode) -> bool + Clone,
 {
 	type Item = ComputeGridNode;
 

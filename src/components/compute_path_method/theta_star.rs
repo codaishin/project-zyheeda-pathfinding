@@ -112,7 +112,7 @@ impl ComputePath for ThetaStar {
 				return closed
 					.construct_path_from(current)
 					.remove_redundant_nodes(los_f)
-					.collect();
+					.collect_with_optimized_node_positions();
 			}
 
 			for neighbor in self.neighbors(&current) {
