@@ -185,13 +185,59 @@ where
 		}
 	}
 
+	fn try_override_nodes(
+		has_line_of_sight: &impl Fn(ComputeGridNode, ComputeGridNode) -> bool,
+		node: &ComputeGridNode,
+		last: &ComputeGridNode,
+		next: &ComputeGridNode,
+	) -> Vec<ComputeGridNode> {
+		let Some(dir_last) = node.eight_sided_direction_to(last) else {
+			return vec![*node];
+		};
+		let Some(dir_next) = node.eight_sided_direction_to(next) else {
+			return vec![*node];
+		};
+		if dir_last.is_diagonal() && dir_next.is_diagonal() {
+			return vec![*node];
+		}
+		if dir_last.is_straight() && dir_next.is_straight() {
+			return vec![*node];
+		}
+
+		let mut override_nodes = (*node, *node);
+		let do_override = |a, b, (old_a, old_b): (ComputeGridNode, ComputeGridNode)| {
+			has_line_of_sight(a, b) && (a - b).right_angle_len() > (old_a - old_b).right_angle_len()
+		};
+
+		let mut to_last = *node + dir_last;
+
+		while &to_last != last {
+			let mut to_next = *node + dir_next;
+
+			while &to_next != next {
+				if do_override(to_last, to_next, override_nodes) {
+					override_nodes = (to_last, to_next);
+				} else {
+					break;
+				}
+				to_next += dir_next;
+			}
+			to_last += dir_last;
+		}
+
+		if override_nodes != (*node, *node) {
+			vec![override_nodes.0, override_nodes.1]
+		} else {
+			vec![*node]
+		}
+	}
+
 	pub fn collect_with_optimized_node_positions(self) -> Vec<ComputeGridNode> {
 		let los = &self.los.clone();
 
-		// need to apply node cleanup first
-		let path = &self.collect::<Vec<_>>();
-
-		path.iter()
+		let first_pass = &self.collect::<Vec<_>>();
+		let second_pass = first_pass
+			.iter()
 			.enumerate()
 			.map(move |(i, node)| {
 				let mut node = *node;
@@ -199,10 +245,10 @@ where
 				if i == 0 {
 					return node;
 				}
-				let Some(last) = path.get(i - 1) else {
+				let Some(last) = first_pass.get(i - 1) else {
 					return node;
 				};
-				let Some(next) = path.get(i + 1) else {
+				let Some(next) = first_pass.get(i + 1) else {
 					return node;
 				};
 
@@ -210,6 +256,24 @@ where
 				Self::try_move_closer_to(&mut node, next, last, los);
 
 				node
+			})
+			.collect::<Vec<_>>();
+
+		second_pass
+			.iter()
+			.enumerate()
+			.flat_map(|(i, node)| {
+				if i == 0 {
+					return vec![*node];
+				}
+				let Some(last) = second_pass.get(i - 1) else {
+					return vec![*node];
+				};
+				let Some(next) = second_pass.get(i + 1) else {
+					return vec![*node];
+				};
+
+				Self::try_override_nodes(los, node, last, next)
 			})
 			.collect()
 	}
