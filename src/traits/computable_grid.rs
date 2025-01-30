@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use std::ops::{Add, Sub};
+use std::ops::{Add, AddAssign, Sub};
 
 pub trait ComputableGrid {
 	type TIter<'a>: Iterator<Item = Vec2>
@@ -42,6 +42,18 @@ impl ComputeGridNode {
 			x: x as i32,
 			y: y as i32,
 		}
+	}
+
+	pub fn right_angle_len(&self) -> u32 {
+		(self.x.abs() + self.y.abs()) as u32
+	}
+
+	pub fn is_straight(&self) -> bool {
+		(self.x == 0 && self.y != 0) || (self.x != 0 && self.y == 0)
+	}
+
+	pub fn is_diagonal(&self) -> bool {
+		self.x.abs() == self.y.abs()
 	}
 
 	pub fn eight_sided_direction_to(&self, target: &ComputeGridNode) -> Option<ComputeGridNode> {
@@ -92,6 +104,12 @@ impl Add for ComputeGridNode {
 			x: self.x + rhs.x,
 			y: self.y + rhs.y,
 		}
+	}
+}
+
+impl AddAssign for ComputeGridNode {
+	fn add_assign(&mut self, rhs: Self) {
+		*self = *self + rhs;
 	}
 }
 
