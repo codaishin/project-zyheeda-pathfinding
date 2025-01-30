@@ -98,7 +98,6 @@ impl ClosedList {
 	pub fn construct_path_from(self, node: ComputeGridNode) -> PathIterator {
 		PathIterator {
 			next: Some(node),
-			start: self.start,
 			list: self,
 		}
 	}
@@ -110,12 +109,19 @@ impl ClosedList {
 
 #[derive(Debug, Clone)]
 pub struct PathIterator {
-	start: ComputeGridNode,
 	list: ClosedList,
 	next: Option<ComputeGridNode>,
 }
 
 impl PathIterator {
+	fn parent(&self, node: &ComputeGridNode) -> Option<&ComputeGridNode> {
+		if node == &self.list.start {
+			return None;
+		}
+
+		self.list.parent(node)
+	}
+
 	pub fn remove_redundant_nodes<T>(self, line_of_sight: T) -> CleanedPathIterator<T>
 	where
 		T: Fn(ComputeGridNode, ComputeGridNode) -> bool + Clone,
@@ -133,10 +139,7 @@ impl Iterator for PathIterator {
 	fn next(&mut self) -> Option<Self::Item> {
 		let current = self.next?;
 
-		self.next = match current == self.start {
-			true => None,
-			false => self.list.parent(&current).copied(),
-		};
+		self.next = self.parent(&current).copied();
 
 		Some(current)
 	}
@@ -221,22 +224,17 @@ where
 	fn next(&mut self) -> Option<Self::Item> {
 		let current = self.iterator.next?;
 
-		self.iterator.next = match current == self.iterator.start {
-			true => None,
-			false => {
-				let mut explored = *self.iterator.list.parent(&current)?;
+		self.iterator.next = match self.iterator.parent(&current).copied() {
+			None => None,
+			Some(mut explored) => {
 				let mut last_visible = explored;
 
-				while let Some(parent) = self.iterator.list.parent(&explored) {
+				while let Some(parent) = self.iterator.parent(&explored) {
 					if (self.los)(current, *parent) {
 						last_visible = *parent;
 					}
 
 					explored = *parent;
-
-					if parent == &self.iterator.list.start {
-						break;
-					}
 				}
 
 				Some(last_visible)
