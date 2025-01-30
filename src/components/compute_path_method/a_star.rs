@@ -53,7 +53,7 @@ impl ComputePath for AStar {
 
 		while let Some(current) = open.pop_lowest_f() {
 			if current == end {
-				return closed.walk_back_from(&current).collect();
+				return closed.construct_path_from(current).collect();
 			}
 
 			for neighbor in self.neighbors(&current) {
@@ -77,7 +77,7 @@ impl ComputePath for AStar {
 	}
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ClosedList {
 	start: ComputeGridNode,
 	parents: HashMap<ComputeGridNode, ComputeGridNode>,
@@ -95,14 +95,10 @@ impl ClosedList {
 		self.parents.insert(node, comes_from);
 	}
 
-	pub fn walk_back_from<'a>(
-		&'a self,
-		node: &'a ComputeGridNode,
-	) -> impl Iterator<Item = ComputeGridNode> + 'a {
-		WalkBack {
-			current: Some(node),
-			start: self.start,
-			parents: &self.parents,
+	pub fn construct_path_from(self, node: ComputeGridNode) -> PathIterator {
+		PathIterator {
+			next: Some(node),
+			list: self,
 		}
 	}
 
@@ -111,24 +107,141 @@ impl ClosedList {
 	}
 }
 
-struct WalkBack<'a> {
-	start: ComputeGridNode,
-	parents: &'a HashMap<ComputeGridNode, ComputeGridNode>,
-	current: Option<&'a ComputeGridNode>,
+#[derive(Debug, Clone)]
+pub struct PathIterator {
+	list: ClosedList,
+	next: Option<ComputeGridNode>,
 }
 
-impl Iterator for WalkBack<'_> {
+impl PathIterator {
+	fn parent(&self, node: &ComputeGridNode) -> Option<&ComputeGridNode> {
+		if node == &self.list.start {
+			return None;
+		}
+
+		self.list.parent(node)
+	}
+
+	pub fn remove_redundant_nodes<T>(self, line_of_sight: T) -> CleanedPathIterator<T>
+	where
+		T: Fn(ComputeGridNode, ComputeGridNode) -> bool + Clone,
+	{
+		CleanedPathIterator {
+			los: line_of_sight,
+			iterator: self,
+		}
+	}
+}
+
+impl Iterator for PathIterator {
 	type Item = ComputeGridNode;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		let next = self.current?;
+		let current = self.next?;
 
-		self.current = match next == &self.start {
-			true => None,
-			false => self.parents.get(next),
+		self.next = self.parent(&current).copied();
+
+		Some(current)
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct CleanedPathIterator<T>
+where
+	T: Fn(ComputeGridNode, ComputeGridNode) -> bool + Clone,
+{
+	los: T,
+	iterator: PathIterator,
+}
+
+impl<T> CleanedPathIterator<T>
+where
+	T: Fn(ComputeGridNode, ComputeGridNode) -> bool + Clone,
+{
+	fn try_move_closer_to(
+		node: &mut ComputeGridNode,
+		target: &ComputeGridNode,
+		other_los_node: &ComputeGridNode,
+		los: &impl Fn(ComputeGridNode, ComputeGridNode) -> bool,
+	) {
+		let Some(direction) = node.eight_sided_direction_to(target) else {
+			return;
 		};
 
-		Some(*next)
+		loop {
+			let moved = *node + direction;
+
+			if &moved == target {
+				return;
+			}
+			if !los(moved, *target) {
+				return;
+			}
+			if !los(moved, *other_los_node) {
+				return;
+			}
+
+			*node = moved;
+		}
+	}
+
+	pub fn collect_with_optimized_node_positions(self) -> Vec<ComputeGridNode> {
+		let los = &self.los.clone();
+
+		// need to apply node cleanup first
+		let path = &self.collect::<Vec<_>>();
+
+		path.iter()
+			.enumerate()
+			.map(move |(i, node)| {
+				let mut node = *node;
+
+				if i == 0 {
+					return node;
+				}
+				let Some(last) = path.get(i - 1) else {
+					return node;
+				};
+				let Some(next) = path.get(i + 1) else {
+					return node;
+				};
+
+				Self::try_move_closer_to(&mut node, last, next, los);
+				Self::try_move_closer_to(&mut node, next, last, los);
+
+				node
+			})
+			.collect()
+	}
+}
+
+impl<T> Iterator for CleanedPathIterator<T>
+where
+	T: Fn(ComputeGridNode, ComputeGridNode) -> bool + Clone,
+{
+	type Item = ComputeGridNode;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		let current = self.iterator.next?;
+
+		self.iterator.next = match self.iterator.parent(&current).copied() {
+			None => None,
+			Some(mut explored) => {
+				let mut last_visible = explored;
+
+				while let Some(parent) = self.iterator.parent(&explored) {
+					if (self.los)(current, *parent) {
+						last_visible = *parent;
+					}
+
+					explored = *parent;
+				}
+
+				Some(last_visible)
+			}
+		};
+
+		Some(current)
 	}
 }
 

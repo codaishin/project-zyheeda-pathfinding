@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use std::ops::{Add, Sub};
 
 pub trait ComputableGrid {
 	type TIter<'a>: Iterator<Item = Vec2>
@@ -40,6 +41,67 @@ impl ComputeGridNode {
 		Self {
 			x: x as i32,
 			y: y as i32,
+		}
+	}
+
+	pub fn eight_sided_direction_to(&self, target: &ComputeGridNode) -> Option<ComputeGridNode> {
+		if self == target {
+			return None;
+		}
+
+		let direction = *target - *self;
+
+		if direction.x == 0 && direction.y != 0 {
+			return Some(ComputeGridNode {
+				x: 0,
+				y: unit(direction.y),
+			});
+		};
+
+		if direction.y == 0 && direction.x != 0 {
+			return Some(ComputeGridNode {
+				x: unit(direction.x),
+				y: 0,
+			});
+		}
+
+		if direction.x.abs() == direction.y.abs() {
+			return Some(ComputeGridNode {
+				x: unit(direction.x),
+				y: unit(direction.y),
+			});
+		}
+
+		None
+	}
+}
+
+fn unit(value: i32) -> i32 {
+	if value < 0 {
+		-1
+	} else {
+		1
+	}
+}
+
+impl Add for ComputeGridNode {
+	type Output = Self;
+
+	fn add(self, rhs: Self) -> Self::Output {
+		Self {
+			x: self.x + rhs.x,
+			y: self.y + rhs.y,
+		}
+	}
+}
+
+impl Sub for ComputeGridNode {
+	type Output = Self;
+
+	fn sub(self, rhs: Self) -> Self::Output {
+		Self {
+			x: self.x - rhs.x,
+			y: self.y - rhs.y,
 		}
 	}
 }
